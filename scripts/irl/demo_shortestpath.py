@@ -9,21 +9,17 @@ import pandas as pd
 import torch
 
 # from mdp import gridworld1d
-from mdp import value_iteration
+from models.irl.algo import value_iteration
 from mdp import shortestpath
 
 # from lp_irl import *
-from models.utils import *
-from models.plotutils import *
-from models.maxent_irl import maxent_irl
-from models.maxent_irl_stateaction import maxent_irl_stateaction
-from models.deep_maxent_irl import deep_maxent_irl, DeepMaxEnt
-# from deep_maxent_irl import *
-
+from models.utils.utils import *
+from models.utils.plotutils import *
+from models.irl.models.maxent_irl import maxent_irl
+from models.irl.models.maxent_irl_stateaction import maxent_irl_stateaction
 
 # import sys
 # sys.argv = ['-n 1000' , '-d data/Logit.csv' , '-o output']
-
 
 
 def main(data0, outpath,lr=0.1 , n_iters=1000 , print_freq=20, gamma=0.5 ):
