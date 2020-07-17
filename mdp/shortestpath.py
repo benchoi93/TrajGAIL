@@ -12,7 +12,7 @@ sys.path.append(os.path.dirname(os.getcwd()))
 
 import numpy as np
 import pandas as pd
-from models.utils import *
+from models.utils.utils import *
 
 class ShortestPath(object):
   """
@@ -21,13 +21,17 @@ class ShortestPath(object):
 
   """
 
-  def __init__(self, network_path):
+  def __init__(self, network_path,origins,destinations):
     self.network_path = network_path
+    self.netin = origins
+    self.netout = destinations
 
     try:
       netconfig = pd.read_csv(os.path.join(os.path.dirname(os.getcwd()) , self.network_path) , sep = " " , header = None)
     except:
       netconfig = pd.read_csv( self.network_path , sep = " " , header = None)
+      if len(netconfig.columns) <= 3:
+        netconfig = pd.read_csv( self.network_path , sep = "," , header = None)
 
     netconfig = netconfig[[0,1,2]]
     netconfig.columns = ["from","con","to"]
@@ -40,32 +44,37 @@ class ShortestPath(object):
       if fromid in netconfig_dict.keys():
         netconfig_dict[fromid][con-1] = toid
       else:
-        netconfig_dict[fromid]={0:0 , 1:0, 2:0}
+        netconfig_dict[fromid]={}
         netconfig_dict[fromid][con-1]=toid
     self.netconfig = netconfig_dict
     
     states = list(set(list(netconfig["from"]) + list(netconfig["to"])))
-
-    self.start = 0
-    self.terminal = 1
+    states += [x for x in destinations if x not in states]
+    states += [x for x in origins if x not in states]
     
-    self.origins = [252, 273, 298, 302, 372, 443, 441, 409, 430, 392, 321, 245 ]
-    self.destinations = [ 253,  276, 301, 299, 376, 447, 442, 400, 420, 393, 322, 246]
+    self.start = 1000
+    self.terminal = 1001
+    
+    # self.origins = [252, 273, 298, 302, 372, 443, 441, 409, 430, 392, 321, 245 ]
+    # self.destinations = [ 253,  276, 301, 299, 376, 447, 442, 400, 420, 393, 322, 246]
+    self.origins = states
+    self.destinations = states
 
     self.netconfig[self.start] = {}
     for i in range(len(self.origins)):
       self.netconfig[self.start][i]=self.origins[i]
     for d0 in self.destinations:
-      self.netconfig[d0]={}
-      self.netconfig[d0][2] = self.terminal
+      if d0 not in self.netconfig.keys():
+        self.netconfig[d0]={}
+      self.netconfig[d0][4] = self.terminal
 
     states = states + [self.start , self.terminal]
     # 0 = start of the trip
     # 1 = end of the trip
 
     self.states = states
-    self.actions = [1,2,3]
-    #1: right-turn 2: straight 3: left-turn
+    self.actions = [1,2,3,4]
+    #1: right-turn 2: straight 3: left-turn 4:end_trip
 
     self.n_states = len(self.states)
     self.n_actions = len(self.actions)
@@ -176,8 +185,8 @@ class ShortestPath(object):
 
 
   def is_terminal(self, state):
-    # if state == self.terminal:
-    if state in self.destinations:
+    if state == self.terminal:
+    # if state in self.destinations:
       return True
     else:
       return False
@@ -319,53 +328,52 @@ class ShortestPath(object):
     trajs       a list of trajectories - each element in the list is a list of Steps representing an episode
     """
 
-
-    demo = pd.read_csv(demopath)
-    
-    trajs = []
-    
-    oid_list = list(set(list(demo["oid"])))
-    n_trajs = len(oid_list)
-
-    for i in range(n_trajs):
+    if demopath.split(".")[1] == "pkl":
+      import pickle
+      trajs = pickle.load(open(demopath,'rb'))
+      route_list = identify_routes(trajs)
+      max_route_length = max([x[1] for x in route_list])
+      self.max_route_length = max_route_length
+      return trajs
       
-      cur_demo = demo[demo["oid"] == oid_list[i]]
-      cur_demo = cur_demo.reset_index()
+    elif demopath.split(".")[1] == "csv":
+      demo = pd.read_csv(demopath)
 
+      trajs = []
+      
+      oid_list = list(set(list(demo["oid"])))
+      n_trajs = len(oid_list)
 
-      len_demo = cur_demo.shape[0]
-      episode = []
+      for i in range(n_trajs):
+        
+        cur_demo = demo[demo["oid"] == oid_list[i]]
+        cur_demo = cur_demo.reset_index()
 
-      self.reset(self.start)
-      # cur_state = self.start
-      # cur_state, action, next_state, reward, is_done = self.step(2)
-      # episode.append(Step(cur_state=cur_state, action=self.actions[action], next_state=next_state, reward=reward, done=is_done))
+        len_demo = cur_demo.shape[0]
+        episode = []
 
-      for i in range(len_demo):
-        _cur_state = self._cur_state
-        _next_state = cur_demo.loc[i,"sectionId"]
+        self.reset(self.start)
+        # cur_state = self.start
+        # cur_state, action, next_state, reward, is_done = self.step(2)
+        # episode.append(Step(cur_state=cur_state, action=self.actions[action], next_state=next_state, reward=reward, done=is_done))
+        for i0 in range(len_demo):
+          _cur_state = self._cur_state
+          _next_state = cur_demo.loc[i0,"sectionId"]
 
-        action_list = self.get_action_list(_cur_state)
-        j = [self.get_state_transition(_cur_state , a0) for a0 in action_list].index(_next_state)
-        action = action_list[j]
+          action_list = self.get_action_list(_cur_state)
+          j = [self.get_state_transition(_cur_state , a0) for a0 in action_list].index(_next_state)
+          action = action_list[j]
 
-        # if i == 0:
-        #   action = 2
-        # else:
-        #   # j = [self.get_state_transition(_cur_state , a0) for a0 in self.get_action_list(_cur_state)].index(_next_state)
-        #   j = [self.get_state_transition(_cur_state , a0) for a0 in self.actions].index(_next_state)
-        #   action = self.actions[j]
-          
-        cur_state, action, next_state, reward, is_done = self.step(action)
+          cur_state, action, next_state, reward, is_done = self.step(action)
+          episode.append(Step(cur_state=cur_state, action=action, next_state=next_state, reward=reward, done=is_done))
+        cur_state, action, next_state, reward, is_done = self.step(4)
         episode.append(Step(cur_state=cur_state, action=action, next_state=next_state, reward=reward, done=is_done))
-      cur_state, action, next_state, reward, is_done = self.step(2)
-      # episode.append(Step(cur_state=cur_state, action=action, next_state=next_state, reward=reward, done=is_done))
-      trajs.append(episode)
+        trajs.append(episode)
 
-    route_list = identify_routes(trajs)
-    max_route_length = max([x[1] for x in route_list])
-    self.max_route_length = max_route_length
-    return trajs
+      route_list = identify_routes(trajs)
+      max_route_length = max([x[1] for x in route_list])
+      self.max_route_length = max_route_length
+      return trajs
 
 
 

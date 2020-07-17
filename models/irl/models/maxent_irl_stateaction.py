@@ -10,12 +10,11 @@ Acknowledgement:
 By Yiren Lu (luyirenmax@gmail.com), May 2017
 '''
 import numpy as np
-import mdp.gridworld as gridworld
-import mdp.value_iteration as value_iteration
+import models.irl.algo.value_iteration as value_iteration
 # import img_utils
 # from models.utils import *
 
-from models.utils import * 
+from models.utils.utils import * 
 
 
 def maxent_irl_stateaction(sw, feat_map, gamma, trajs, lr, n_iters, print_freq):

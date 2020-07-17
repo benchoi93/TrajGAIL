@@ -7,7 +7,7 @@ import numpy as np
 import math
 import io
 import pandas as pd
-from models.utils import identify_routes,check_RouteID
+from models.utils.utils import identify_routes,check_RouteID
 import time
 
 def plot_summary(GAIL, exp_trajs , learner_observations):
