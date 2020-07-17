@@ -14,6 +14,7 @@ python>3.7
 required python packages in requirement.txt
 
 <Bash terminal>
+ 
 ```bash
 pip install -r requirement.txt
 ```
