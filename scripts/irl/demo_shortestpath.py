@@ -4,16 +4,14 @@ import sys
 sys.path.append(os.getcwd())
 
 import numpy as np
-import matplotlib.pyplot as plt
 import argparse
 import pandas as pd
-import torch
+import datetime
+from tensorboardX import SummaryWriter
 
-# from mdp import gridworld1d
 from models.irl.algo import value_iteration
 from mdp import shortestpath
 
-# from lp_irl import *
 from models.utils.utils import *
 from models.utils.plotutils import *
 from models.irl.models.maxent_irl import maxent_irl
@@ -39,7 +37,6 @@ data0 = args.data
 
 dataname = data0.split('/')[-1].split('.csv')[0]
 
-
 origins = [252, 273, 298, 302, 372, 443, 441, 409, 430, 392, 321, 245 ]
 destinations = [ 253,  276, 301, 299, 376, 447, 442, 400, 420, 393, 322, 246]
 
@@ -47,6 +44,9 @@ sw = shortestpath.ShortestPath("data/Network.txt",origins, destinations)
 N_STATES = sw.n_states
 trajs = sw.import_demonstrations(data0)
 feat_map = np.eye(N_STATES)
+
+MaxEnt_svf = model_summary_writer("test_MaxEnt_svf",sw)
+MaxEnt_savf = model_summary_writer("test_MaxEnt_savf",sw)
 
 dirName = "Result"
 if not os.path.exists(dirName):
@@ -82,39 +82,6 @@ generated_maxent = sw.generate_demonstrations(policy , n_trajs = 10000)
 _, policy = value_iteration.action_value_iteration(sw, rewards_maxent_state_action, GAMMA, error=0.01)
 generated_maxent_stateaction = sw.generate_demonstrations(policy , n_trajs = 10000)
 
-route_list = identify_routes(trajs)
-routes = [x[0] for x in route_list]
-
-def check_RouteID(episode,routes):
-  state_seq = [str(x.cur_state) for x in episode] + [str(episode[-1].next_state)]
-  episode_route = "-".join(state_seq)
-  if episode_route in routes:
-    idx = routes.index(episode_route)
-  else:
-    idx = -1
-  return idx  
-
-expert_route = [check_RouteID(x,routes) for x in trajs]
-maxent_route = [check_RouteID(x,routes) for x in generated_maxent]
-maxent_sa_route = [check_RouteID(x,routes) for x in generated_maxent_stateaction]
-# maxent_deep_route = [check_RouteID(x,routes) for x in generated_maxent_deep]
-
-route_idxs= list(range(len(routes)))+[-1]
-
-# route_dist = [(i , expert_route.count(i) , maxent_route.count(i) , maxent_sa_route.count(i), maxent_deep_route.count(i)) for i in route_idxs]
-route_dist = [(i , expert_route.count(i) , maxent_route.count(i) , maxent_sa_route.count(i)) for i in route_idxs]
-pd_route_dist = pd.DataFrame(route_dist)
-pd_route_dist.columns = ["routeid",'expert','maxent','maxent_sa']
-# pd_route_dist.columns = ["routeid",'expert','maxent','maxent_sa','maxent_deep']
-pd_route_dist['expert']    = pd_route_dist['expert']    / sum(pd_route_dist['expert'])
-pd_route_dist['maxent']    = pd_route_dist['maxent']    / sum(pd_route_dist['maxent'])
-pd_route_dist['maxent_sa'] = pd_route_dist['maxent_sa'] / sum(pd_route_dist['maxent_sa'])
-# pd_route_dist['maxent_deep'] = pd_route_dist['maxent_deep'] / sum(pd_route_dist['maxent_deep'])
-
-pd_route_dist.to_csv(os.path.join(dirName,dataname,"route_dist.csv"))
-fig = plot_barchart(pd_route_dist, route_idxs, os.path.join(dirName,dataname,"compare.png"), keep_unknown=False)
-fig = plot_seperate_barchart(pd_route_dist, route_idxs, os.path.join(dirName,dataname,"compare.png"), keep_unknown=False)
-
-
-
+plot_summary_maxent(MaxEnt_svf, trajs , generated_maxent)
+plot_summary_maxent(MaxEnt_savf, trajs , generated_maxent_stateaction)
 
