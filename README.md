@@ -34,7 +34,24 @@ pip install -r requirement.txt
 
 <Bash terminal>
 
+To run Behavior Cloning Test
+
 ```bash
-python scripts/
+python scripts/behavior_clone/run_bc_rnn.py
 ```
+
+
+To run MaxEnt IRL
+
+```bash
+python scripts/irl/demo_shortestpath.py
+```
+
+
+To run GAIL
+
+```bash
+python scripts/gail/run_gail_wasser_rnn.py
+```
+
 
