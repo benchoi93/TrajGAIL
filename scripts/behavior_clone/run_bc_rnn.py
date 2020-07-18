@@ -1,6 +1,9 @@
 import os 
 import sys
 
+# os.chdir('/Users/seongjinchoi/Downloads/TrajGen_GAIL')
+# sys.argv=['']
+
 sys.path.append(os.getcwd())
 
 import numpy as np
@@ -9,20 +12,19 @@ import pandas as pd
 import datetime
 from tensorboardX import SummaryWriter
 
-from models.irl.algo import value_iteration
 from mdp import shortestpath
 
 from models.utils.utils import *
 from models.utils.plotutils import *
-from models.irl.models.maxent_irl import maxent_irl
-from models.irl.models.maxent_irl_stateaction import maxent_irl_stateaction
 
+from models.behavior_clone.rnn_predictor import *
 
 def argparser():
     parser = argparse.ArgumentParser()
     parser.add_argument('-lr','--learning-rate', default=0.1, type=float)
     parser.add_argument('-g','--gamma', default=0.5, type=float)
     parser.add_argument('-n','--n-iters',default=int(1000),type =int)
+    parser.add_argument('-hd','--hidden',default=int(256),type =int)
     parser.add_argument('-pf','--print-freq',default=int(20),type =int)
     parser.add_argument('-d' , '--data', default = "data/Single_OD/Binomial.csv")
     return parser.parse_args()
@@ -45,9 +47,6 @@ N_STATES = sw.n_states
 trajs = sw.import_demonstrations(data0)
 feat_map = np.eye(N_STATES)
 
-MaxEnt_svf = model_summary_writer("test_MaxEnt_svf_"+dataname,sw)
-MaxEnt_savf = model_summary_writer("test_MaxEnt_savf_"+dataname,sw)
-
 dirName = "Result"
 if not os.path.exists(dirName):
     os.mkdir(dirName)
@@ -61,30 +60,41 @@ if not os.path.exists(os.path.join(dirName,dataname)):
 else:    
     print("Directory " + os.path.join(dirName,dataname) +  " already exists")      
 
-route_list = identify_routes(trajs)
 
-####################
-### Train MaxEnt ###
-rewards_maxent = maxent_irl(sw,feat_map, GAMMA, trajs, LEARNING_RATE*2, N_ITERS*2 , print_freq=PRINT_FREQ)
-np.save( os.path.join(dirName,dataname,"rewards_maxent.npy"),rewards_maxent)
+BC_RNN = model_summary_writer("test_BC_RNN_"+dataname,sw)
 
-########################################
-### Train MaxEnt State action###
-rewards_maxent_state_action = maxent_irl_stateaction(sw,feat_map, GAMMA, trajs, LEARNING_RATE*2, N_ITERS*2 , print_freq=PRINT_FREQ)
-np.save( os.path.join(dirName,dataname,"rewards_maxent_state_action.npy")  ,rewards_maxent_state_action)
+max_length = max(list(map(len , trajs)))
+PAD_IDX = -1
 
-rewards_maxent = np.load(os.path.join(dirName,dataname,"rewards_maxent.npy"))
-rewards_maxent_state_action = np.load(os.path.join(dirName,dataname,"rewards_maxent_state_action.npy"))
+trajs_list = [[x.cur_state for x in episode ] + [episode[-1].next_state] + [-1]*(max_length - len(episode)) for episode in trajs] 
+trajs_np = np.array(trajs_list)
 
-_, policy = value_iteration.value_iteration(sw, rewards_maxent, GAMMA, error=0.01)
-generated_maxent = sw.generate_demonstrations(policy , n_trajs = 10000)
+RNNMODEL = RNN_predictor(sw.states, args.hidden,pad_idx = PAD_IDX)
 
-_, policy = value_iteration.action_value_iteration(sw, rewards_maxent_state_action, GAMMA, error=0.01)
-generated_maxent_stateaction = sw.generate_demonstrations(policy , n_trajs = 10000)
+idx_seq = RNNMODEL.states_to_idx(trajs_np)
 
-MaxEnt_svf.summary_cnt+=1
-MaxEnt_savf.summary_cnt+=1
+# self = RNNMODEL
+seq = torch.LongTensor(idx_seq)
 
-plot_summary_maxent(MaxEnt_svf, trajs , generated_maxent)
-plot_summary_maxent(MaxEnt_savf, trajs , generated_maxent_stateaction)
+x_train = seq[:, :(seq.size(1)-1)]
+y_train = seq[:, 1:]
 
+criterion = torch.nn.CrossEntropyLoss(ignore_index=RNNMODEL.pad_idx)
+optimizer = torch.optim.Adam(RNNMODEL.parameters(),lr = args.learning_rate)
+
+for _ in range(args.n_iters):
+    y_est = RNNMODEL(x_train)
+    loss = criterion(y_est.view((y_train.size(0)*y_train.size(1)) , y_est.size(2)), y_train.contiguous().view((y_train.size(0)*y_train.size(1),))  )
+    
+    optimizer.zero_grad()
+    loss.backward()
+    optimizer.step()
+
+    learner_observations = RNNMODEL.unroll_trajectories(sw.start,sw.terminal,2000,20)
+    find_state = lambda x: RNNMODEL.states[x]
+    np_find_state = np.vectorize(find_state)
+    learner_observations = np_find_state(learner_observations.numpy())
+
+    plot_summary(BC_RNN, trajs, learner_observations)
+    BC_RNN.summary.add_scalar("loss",loss.item())
+    BC_RNN.summary_cnt +=1

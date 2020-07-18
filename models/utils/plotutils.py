@@ -23,11 +23,15 @@ def plot_summary(GAIL, exp_trajs , learner_observations):
     fig,ax = plot_barchart(pd_route_dist, route_idxs, "compare.png", keep_unknown=False)
     GAIL.summary.add_figure("Origin_Distribution", fig , GAIL.summary_cnt)
 
-    expert   = [episode[-1].next_state for episode in exp_trajs]
+    expert   = [episode[-1].cur_state for episode in exp_trajs]
     gail     = list(learner_observations[np.arange(learner_observations.shape[0]) , np.sum(learner_observations != -1 , axis =1)-1])
     route_idxs= GAIL.env.destinations
     route_dist = [(i ,expert.count(i) , gail.count(i)) for i in route_idxs]
     np_route_dist = np.array(route_dist,np.float64)
+
+    if 0 in np.sum(np_route_dist[:,1:],0):
+        print(1)
+
     np_route_dist[:,1:] = np_route_dist[:,1:] / np.sum(np_route_dist[:,1:],0)
     pd_route_dist = pd.DataFrame(np_route_dist)
     pd_route_dist.columns = ["routeid",'expert','gail']
@@ -134,8 +138,8 @@ def plot_summary_maxent(GAIL, exp_trajs , learner_trajs):
     fig,ax = plot_barchart(pd_route_dist, route_idxs, "compare.png", keep_unknown=False)
     GAIL.summary.add_figure("Origin_Distribution", fig , GAIL.summary_cnt)
 
-    expert   = [episode[-1].next_state for episode in exp_trajs]
-    gail   = [episode[-1].next_state for episode in learner_trajs]
+    expert   = [episode[-1].cur_state for episode in exp_trajs]
+    gail   = [episode[-1].cur_state for episode in learner_trajs]
     # gail     = list(learner_observations[np.arange(learner_observations.shape[0]) , np.sum(learner_observations != -1 , axis =1)-1])
     route_idxs= GAIL.env.destinations
     route_dist = [(i ,expert.count(i) , gail.count(i)) for i in route_idxs]
@@ -180,7 +184,7 @@ def plot_summary_maxent(GAIL, exp_trajs , learner_trajs):
 
     svf = [(i ,expert_svf.count(i) , learner_svf.count(i)) for i in GAIL.env.states]
     svf = np.array(svf,np.float)
-    svf[:,1:] = svf[:,1:].astype(np.float) / np.array([len(exp_trajs) , len(exp_trajs) ] , np.float) * 100
+    svf[:,1:] = svf[:,1:].astype(np.float) / np.array([len(exp_trajs) , len(learner_trajs) ] , np.float) * 100
     pd_svf = pd.DataFrame(svf)
     pd_svf.columns = ["StateID","expert","GAIL"]
 
