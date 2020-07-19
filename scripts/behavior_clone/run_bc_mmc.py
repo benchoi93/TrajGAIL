@@ -27,6 +27,7 @@ def argparser():
     parser.add_argument('-hd','--hidden',default=int(256),type =int)
     parser.add_argument('-pf','--print-freq',default=int(20),type =int)
     parser.add_argument('-d' , '--data', default = "data/Single_OD/Binomial.csv")
+    parser.add_argument('--gangnam', default = False, action = "store_true" )
     return parser.parse_args()
 args = argparser()
 
@@ -40,10 +41,23 @@ data0 = args.data
 dataname = data0.split('/')[-1].split('.csv')[0]
 demand_type = data0.split('/')[-2]
 
-origins = [252, 273, 298, 302, 372, 443, 441, 409, 430, 392, 321, 245 ]
-destinations = [ 253,  276, 301, 299, 376, 447, 442, 400, 420, 393, 322, 246]
+if args.gangnam:
+    origins=[222,223,224,225,226,227,228,
+            214,213,212,211,210,209,208,
+            190,189,188,187,186,185,184,
+            167,168,169,170,171,172,173,174,175,176]
 
-sw = shortestpath.ShortestPath("data/Network.txt",origins, destinations)
+    destinations=[191,192,193,194,195,196,197,
+                183,182,181,180,179,178,177,
+                221,220,219,218,217,216,215,
+                198,199,200,201,202,203,204,205,206,207 ]
+    sw = shortestpath.ShortestPath("data/gangnam_Network.txt",origins,destinations)
+else:
+    origins = [252, 273, 298, 302, 372, 443, 441, 409, 430, 392, 321, 245 ]
+    destinations = [ 253,  276, 301, 299, 376, 447, 442, 400, 420, 393, 322, 246]
+    sw = shortestpath.ShortestPath("data/Network.txt",origins, destinations)
+
+
 N_STATES = sw.n_states
 trajs = sw.import_demonstrations(data0)
 feat_map = np.eye(N_STATES)
@@ -76,4 +90,4 @@ np_find_state = np.vectorize(find_state)
 
 learner_observations = np_find_state(learner_trajs.numpy())
 
-plot_summary(BC_MMC, trajs, learner_observations)
+plot_summary(BC_MMC, trajs, learner_observations, keep_unknown = False)
