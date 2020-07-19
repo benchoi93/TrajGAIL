@@ -24,6 +24,7 @@ class RNN_predictor(nn.Module):
         self.np_find_idx = np.vectorize(self.find_idx)
         self.pad_idx = self.find_idx(self.pad)
 
+        self.device = torch.device("cpu")
 
     def states_to_idx(self, states_seq:np.array):
         idx_seq = self.np_find_idx(states_seq)
@@ -31,8 +32,8 @@ class RNN_predictor(nn.Module):
 
     def init_hidden(self,batch_size):
         # (num_layers * num_directions, batch_size, hidden_size)
-        hidden = Variable(torch.zeros(self.num_layers,batch_size,self.hidden))
-        cell = Variable(torch.zeros(self.num_layers,batch_size,self.hidden))
+        hidden = Variable(torch.zeros(self.num_layers,batch_size,self.hidden)).to(self.device)
+        cell = Variable(torch.zeros(self.num_layers,batch_size,self.hidden)).to(self.device)
         return hidden, cell
 
     def forward(self, x_train):
@@ -45,19 +46,24 @@ class RNN_predictor(nn.Module):
         return y_est
 
     def unroll_trajectories(self,start_state, end_state,num_trajs, max_length = 20):
+        # start_state = sw.start
+        # end_state = sw.terminal
+        # num_trajs = 200
+        # max_length = 20
+
         end_idx = self.find_idx(end_state)
-        learner_trajs  = torch.ones((num_trajs, 1)).long() * self.find_idx(start_state)
-        done_mask = torch.zeros((num_trajs)).bool()
+        learner_trajs  = torch.ones((num_trajs, 1)).long().to(self.device) * self.find_idx(start_state)
+        done_mask = torch.zeros((num_trajs)).bool().to(self.device)
 
         for i in range(max_length):
             input_trajs = learner_trajs[~done_mask,:]
 
-            next_prob = self.forward(input_trajs)
+            next_prob = self.forward(input_trajs.to(self.device))
             next_prob_dist = torch.distributions.Categorical(next_prob[:,-1,:(self.state_dim-1)])
             next_idx = next_prob_dist.sample()
             next_idx.unsqueeze_(1)
             
-            next_idx_whole = torch.ones((num_trajs, 1)).long() * self.pad_idx
+            next_idx_whole = torch.ones((num_trajs, 1)).long().to(self.device) * self.pad_idx
             next_idx_whole[~done_mask] = next_idx
 
             learner_trajs = torch.cat([learner_trajs, next_idx_whole],dim=1)       

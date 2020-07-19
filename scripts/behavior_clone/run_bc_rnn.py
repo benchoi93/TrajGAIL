@@ -1,7 +1,7 @@
 import os 
 import sys
 
-# os.chdir('/Users/seongjinchoi/Downloads/TrajGen_GAIL')
+# os.chdir('D:\TrajGen_GAIL')
 # sys.argv=['']
 
 sys.path.append(os.getcwd())
@@ -27,8 +27,14 @@ def argparser():
     parser.add_argument('-hd','--hidden',default=int(256),type =int)
     parser.add_argument('-pf','--print-freq',default=int(20),type =int)
     parser.add_argument('-d' , '--data', default = "data/Single_OD/Binomial.csv")
+    parser.add_argument("--cuda", default = False, type =bool)
     return parser.parse_args()
 args = argparser()
+
+if torch.cuda.is_available() & args.cuda:
+    device = torch.device("cuda")
+else:
+    device = torch.device("cpu")
 
 # def main(data0, outpath,lr=0.1 , n_iters=1000 , print_freq=20, gamma=0.5 ):
 LEARNING_RATE = args.learning_rate
@@ -37,6 +43,7 @@ PRINT_FREQ = args.print_freq
 GAMMA = args.gamma
 data0 = args.data
 
+demand_pattern = data0.split('/')[-2]
 dataname = data0.split('/')[-1].split('.csv')[0]
 
 origins = [252, 273, 298, 302, 372, 443, 441, 409, 430, 392, 321, 245 ]
@@ -61,7 +68,7 @@ else:
     print("Directory " + os.path.join(dirName,dataname) +  " already exists")      
 
 
-BC_RNN = model_summary_writer("test_BC_RNN_"+dataname,sw)
+BC_RNN = model_summary_writer("test_BC_RNN_{}_{}".format(demand_pattern,dataname),sw)
 
 max_length = max(list(map(len , trajs)))
 PAD_IDX = -1
@@ -82,9 +89,14 @@ y_train = seq[:, 1:]
 criterion = torch.nn.CrossEntropyLoss(ignore_index=RNNMODEL.pad_idx)
 optimizer = torch.optim.Adam(RNNMODEL.parameters(),lr = args.learning_rate)
 
+if device.type == "cuda":
+    RNNMODEL = RNNMODEL.cuda()
+    RNNMODEL.device= torch.device("cuda")
+
+print("training start")
 for _ in range(args.n_iters):
-    y_est = RNNMODEL(x_train)
-    loss = criterion(y_est.view((y_train.size(0)*y_train.size(1)) , y_est.size(2)), y_train.contiguous().view((y_train.size(0)*y_train.size(1),))  )
+    y_est = RNNMODEL(x_train.to(device))
+    loss = criterion(y_est.view((y_train.size(0)*y_train.size(1)) , y_est.size(2)), y_train.contiguous().to(device).view((y_train.size(0)*y_train.size(1),))  )
     
     optimizer.zero_grad()
     loss.backward()
@@ -93,8 +105,11 @@ for _ in range(args.n_iters):
     learner_observations = RNNMODEL.unroll_trajectories(sw.start,sw.terminal,2000,20)
     find_state = lambda x: RNNMODEL.states[x]
     np_find_state = np.vectorize(find_state)
+    if learner_observations.is_cuda:
+        learner_observations = learner_observations.cpu()
     learner_observations = np_find_state(learner_observations.numpy())
 
+    print("Loss :: {}".format(loss.item()))
     plot_summary(BC_RNN, trajs, learner_observations)
-    BC_RNN.summary.add_scalar("loss",loss.item())
+    BC_RNN.summary.add_scalar("loss",loss.item(),BC_RNN.summary_cnt)
     BC_RNN.summary_cnt +=1
