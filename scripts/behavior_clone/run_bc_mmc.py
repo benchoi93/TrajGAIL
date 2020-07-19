@@ -1,4 +1,4 @@
-import os 
+import os
 import sys
 
 # os.chdir('/Users/seongjinchoi/Downloads/TrajGen_GAIL')
@@ -17,7 +17,7 @@ from mdp import shortestpath
 from models.utils.utils import *
 from models.utils.plotutils import *
 
-from models.behavior_clone.rnn_predictor import *
+from models.behavior_clone.mmc_predictor import *
 
 def argparser():
     parser = argparse.ArgumentParser()
@@ -38,6 +38,7 @@ GAMMA = args.gamma
 data0 = args.data
 
 dataname = data0.split('/')[-1].split('.csv')[0]
+demand_type = data0.split('/')[-2]
 
 origins = [252, 273, 298, 302, 372, 443, 441, 409, 430, 392, 321, 245 ]
 destinations = [ 253,  276, 301, 299, 376, 447, 442, 400, 420, 393, 322, 246]
@@ -61,40 +62,18 @@ else:
     print("Directory " + os.path.join(dirName,dataname) +  " already exists")      
 
 
-BC_MMC = model_summary_writer("test_BC_RNN_"+dataname,sw)
-
+BC_MMC = model_summary_writer("test_BC_MMC_{}_{}".format(demand_type, dataname),sw)
 max_length = max(list(map(len , trajs)))
-PAD_IDX = -1
 
-trajs_list = [[x.cur_state for x in episode ] + [episode[-1].next_state] + [-1]*(max_length - len(episode)) for episode in trajs] 
-trajs_np = np.array(trajs_list)
+MMCMODEL = MMC_predictor(sw, max_length)
 
-RNNMODEL = RNN_predictor(sw.states, args.hidden,pad_idx = PAD_IDX)
+transition = MMCMODEL.train(trajs)
 
-idx_seq = RNNMODEL.states_to_idx(trajs_np)
+learner_trajs = MMCMODEL.unroll_trajectories(transition, 20000, 20)
 
-# self = RNNMODEL
-seq = torch.LongTensor(idx_seq)
+find_state = lambda x: sw.states[x] if x != MMCMODEL.pad_idx else -1
+np_find_state = np.vectorize(find_state)
 
-x_train = seq[:, :(seq.size(1)-1)]
-y_train = seq[:, 1:]
+learner_observations = np_find_state(learner_trajs.numpy())
 
-criterion = torch.nn.CrossEntropyLoss(ignore_index=RNNMODEL.pad_idx)
-optimizer = torch.optim.Adam(RNNMODEL.parameters(),lr = args.learning_rate)
-
-for _ in range(args.n_iters):
-    y_est = RNNMODEL(x_train)
-    loss = criterion(y_est.view((y_train.size(0)*y_train.size(1)) , y_est.size(2)), y_train.contiguous().view((y_train.size(0)*y_train.size(1),))  )
-    
-    optimizer.zero_grad()
-    loss.backward()
-    optimizer.step()
-
-    learner_observations = RNNMODEL.unroll_trajectories(sw.start,sw.terminal,2000,20)
-    find_state = lambda x: RNNMODEL.states[x]
-    np_find_state = np.vectorize(find_state)
-    learner_observations = np_find_state(learner_observations.numpy())
-
-    plot_summary(BC_RNN, trajs, learner_observations)
-    BC_RNN.summary.add_scalar("loss",loss.item())
-    BC_RNN.summary_cnt +=1
+plot_summary(BC_MMC, trajs, learner_observations)

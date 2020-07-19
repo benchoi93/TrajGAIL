@@ -24,7 +24,7 @@ def plot_summary(GAIL, exp_trajs , learner_observations):
     GAIL.summary.add_figure("Origin_Distribution", fig , GAIL.summary_cnt)
 
     expert   = [episode[-1].cur_state for episode in exp_trajs]
-    gail     = list(learner_observations[np.arange(learner_observations.shape[0]) , np.sum(learner_observations != -1 , axis =1)-1])
+    gail     = list(learner_observations[np.arange(learner_observations.shape[0]) , np.sum(learner_observations != -1 , axis =1)-2])
     route_idxs= GAIL.env.destinations
     route_dist = [(i ,expert.count(i) , gail.count(i)) for i in route_idxs]
     np_route_dist = np.array(route_dist,np.float64)
@@ -66,8 +66,6 @@ def plot_summary(GAIL, exp_trajs , learner_observations):
     else:
         fig,ax = plot_barchart(pd_route_dist, route_idxs, "compare.png", keep_unknown=True)
     GAIL.summary.add_figure("Route_Distribution", fig , GAIL.summary_cnt)
-
-    # learner_svf = sum([[x.cur_state for x in episode] for episode in learner_trajs] , []) + [episode[-1].next_state for episode in learner_trajs]
 
     learner_svf = []
     for x in learner_observations:
