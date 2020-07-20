@@ -30,11 +30,15 @@ def plot_summary(GAIL, exp_trajs , learner_observations, keep_unknown=True):
 
     route_idxs = [list(x) for x in list(np_expert_unq)]
     
-    route_dist =  [(i, np_expert_cnt[i] , np_gail_cnt[np.where(np.all(np_gail_unq == np_expert_unq[i] , axis=1))[0][0]] )  for i in range(np_expert_unq.shape[0]) if np.where(np.all(np_gail_unq == np_expert_unq[i] , axis=1))[0].shape[0] > 0]
+    route_dist = []
+    for i in range(np_expert_unq.shape[0]):
+        if np.where(np.all(np_gail_unq == np_expert_unq[i] , axis=1))[0].shape[0] > 0:
+            route_dist += [(i, np_expert_cnt[i] , np_gail_cnt[np.where(np.all(np_gail_unq == np_expert_unq[i] , axis=1))[0][0]] )   ]
+
     route_dist += [(-1 , 0, np.sum(np_gail_cnt)-sum([x[2] for x in route_dist]))]
 
     np_route_dist = np.array(route_dist,np.float64)
-    np_route_dist[:,1:] = np_route_dist[:,1:] / np.sum(np_route_dist[:,1:],0)
+    np_route_dist[:,1:] = np_route_dist[:,1:] / (np.sum(np_route_dist[:,1:],0) + 1e-10)
     pd_route_dist = pd.DataFrame(np_route_dist)
     pd_route_dist.columns = ["routeid",'expert','gail']
 
@@ -44,8 +48,8 @@ def plot_summary(GAIL, exp_trajs , learner_observations, keep_unknown=True):
     else:
         fig,ax = plot_barchart(pd_route_dist, list(pd_route_dist['routeid']), "compare.png", keep_unknown=keep_unknown)
     GAIL.summary.add_figure("OD_distribution", fig , GAIL.summary_cnt)
-    JSD_route_dist = distance.jensenshannon(pd_route_dist['expert'],pd_route_dist['gail'])
-    GAIL.summary.add_scalar("JSD_OD_Distribution",JSD_route_dist)
+    JSD_route_dist = distance.jensenshannon(pd_route_dist['expert']+1e-10,pd_route_dist['gail']+1e-10)
+    GAIL.summary.add_scalar("JSD_OD_Distribution",JSD_route_dist,GAIL.summary_cnt)
 
 
     expert   = [episode[0].next_state for episode in exp_trajs]
@@ -73,7 +77,7 @@ def plot_summary(GAIL, exp_trajs , learner_observations, keep_unknown=True):
         fig,ax = plot_barchart(pd_route_dist, list(pd_route_dist['routeid']), "compare.png", keep_unknown=keep_unknown)
     GAIL.summary.add_figure("Origin_Distribution", fig , GAIL.summary_cnt)
     JSD_route_dist = distance.jensenshannon(pd_route_dist['expert'],pd_route_dist['gail'])
-    GAIL.summary.add_scalar("JSD_Origin_Distribution",JSD_route_dist)
+    GAIL.summary.add_scalar("JSD_Origin_Distribution",JSD_route_dist,GAIL.summary_cnt)
 
 
     expert   = [episode[-1].cur_state for episode in exp_trajs]
@@ -100,7 +104,7 @@ def plot_summary(GAIL, exp_trajs , learner_observations, keep_unknown=True):
         fig,ax = plot_barchart(pd_route_dist, list(pd_route_dist['routeid']), "compare.png", keep_unknown=keep_unknown)
     GAIL.summary.add_figure("Destination_Distribution", fig , GAIL.summary_cnt)
     JSD_route_dist = distance.jensenshannon(pd_route_dist['expert'],pd_route_dist['gail'])
-    GAIL.summary.add_scalar("JSD_Destination_Distribution",JSD_route_dist)
+    GAIL.summary.add_scalar("JSD_Destination_Distribution",JSD_route_dist,GAIL.summary_cnt)
 
 
 
@@ -148,7 +152,7 @@ def plot_summary(GAIL, exp_trajs , learner_observations, keep_unknown=True):
 
     GAIL.summary.add_figure("Route Distribution", fig , GAIL.summary_cnt)
     JSD_route_dist = distance.jensenshannon(pd_route_dist['expert'],pd_route_dist['gail'])
-    GAIL.summary.add_scalar("JSD_Route_Distribution",JSD_route_dist)
+    GAIL.summary.add_scalar("JSD_Route_Distribution",JSD_route_dist,GAIL.summary_cnt)
         
     gail_unq , gail_cnt = np.unique(learner_observations , return_counts=True)
     
@@ -214,6 +218,8 @@ def plot_summary_maxent(GAIL, exp_trajs , learner_trajs):
     else:
         fig,ax = plot_barchart(pd_route_dist, list(pd_route_dist['routeid']), "compare.png")
     GAIL.summary.add_figure("OD_distribution", fig , GAIL.summary_cnt)
+    JSD_route_dist = distance.jensenshannon(pd_route_dist['expert']+1e-10,pd_route_dist['gail']+1e-10)
+    GAIL.summary.add_scalar("JSD_OD_Distribution",JSD_route_dist,GAIL.summary_cnt)
 
 
     expert   = [episode[0].next_state for episode in exp_trajs]
@@ -227,6 +233,8 @@ def plot_summary_maxent(GAIL, exp_trajs , learner_trajs):
     pd_route_dist.columns = ["routeid",'expert','gail']
     fig,ax = plot_barchart(pd_route_dist, route_idxs, "compare.png", keep_unknown=False)
     GAIL.summary.add_figure("Origin_Distribution", fig , GAIL.summary_cnt)
+    JSD_route_dist = distance.jensenshannon(pd_route_dist['expert']+1e-10,pd_route_dist['gail']+1e-10)
+    GAIL.summary.add_scalar("JSD_Origin_Distribution",JSD_route_dist,GAIL.summary_cnt)
 
     expert   = [episode[-1].cur_state for episode in exp_trajs]
     gail   = [episode[-1].cur_state for episode in learner_trajs]
@@ -239,6 +247,8 @@ def plot_summary_maxent(GAIL, exp_trajs , learner_trajs):
     pd_route_dist.columns = ["routeid",'expert','gail']
     fig,ax = plot_barchart(pd_route_dist, route_idxs, "compare.png", keep_unknown=False)
     GAIL.summary.add_figure("Destination_Distribution", fig , GAIL.summary_cnt)
+    JSD_route_dist = distance.jensenshannon(pd_route_dist['expert']+1e-10,pd_route_dist['gail']+1e-10)
+    GAIL.summary.add_scalar("JSD_Destination_Distribution",JSD_route_dist,GAIL.summary_cnt)
     
     expert_routes = identify_routes(exp_trajs)
     routes = [x[0] for x in expert_routes]
@@ -268,11 +278,10 @@ def plot_summary_maxent(GAIL, exp_trajs , learner_trajs):
     else:
         fig,ax = plot_barchart(pd_route_dist, route_idxs, "compare.png", keep_unknown=True)
     GAIL.summary.add_figure("Route_Distribution", fig , GAIL.summary_cnt)
+    JSD_route_dist = distance.jensenshannon(pd_route_dist['expert']+1e-10,pd_route_dist['gail']+1e-10)
+    GAIL.summary.add_scalar("JSD_Route_Distribution",JSD_route_dist,GAIL.summary_cnt)
     
     
-    pd_route_dist['expert']
-
-    pd_route_dist['gail']
 
 
 

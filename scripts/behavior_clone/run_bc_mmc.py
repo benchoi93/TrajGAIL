@@ -91,3 +91,7 @@ np_find_state = np.vectorize(find_state)
 learner_observations = np_find_state(learner_trajs.numpy())
 
 plot_summary(BC_MMC, trajs, learner_observations, keep_unknown = False)
+
+BC_MMC.summary_cnt = N_ITERS
+plot_summary(BC_MMC, trajs, learner_observations, keep_unknown = False)
+

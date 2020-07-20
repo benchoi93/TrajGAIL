@@ -2,7 +2,7 @@ import os
 import sys
 
 # os.chdir('D:\TrajGen_GAIL')
-# sys.argv=['']
+# sys.argv=['','--gangnam','--data' ,"data/gangnam_expert.csv"]
 
 sys.path.append(os.getcwd())
 
@@ -26,8 +26,10 @@ def argparser():
     parser.add_argument('-n','--n-iters',default=int(1000),type =int)
     parser.add_argument('-hd','--hidden',default=int(256),type =int)
     parser.add_argument('-pf','--print-freq',default=int(20),type =int)
+    parser.add_argument('-b','--batch-size',default=int(256),type =int)
     parser.add_argument('-d' , '--data', default = "data/Single_OD/Binomial.csv")
-    parser.add_argument("--cuda", default = False, type =bool)
+    parser.add_argument("--cuda", default = True, type =bool)
+    parser.add_argument('--gangnam', default = False, action = "store_true" )
     return parser.parse_args()
 args = argparser()
 
@@ -46,10 +48,24 @@ data0 = args.data
 demand_pattern = data0.split('/')[-2]
 dataname = data0.split('/')[-1].split('.csv')[0]
 
-origins = [252, 273, 298, 302, 372, 443, 441, 409, 430, 392, 321, 245 ]
-destinations = [ 253,  276, 301, 299, 376, 447, 442, 400, 420, 393, 322, 246]
 
-sw = shortestpath.ShortestPath("data/Network.txt",origins, destinations)
+if args.gangnam:
+    origins=[222,223,224,225,226,227,228,
+            214,213,212,211,210,209,208,
+            190,189,188,187,186,185,184,
+            167,168,169,170,171,172,173,174,175,176]
+
+    destinations=[191,192,193,194,195,196,197,
+                183,182,181,180,179,178,177,
+                221,220,219,218,217,216,215,
+                198,199,200,201,202,203,204,205,206,207 ]
+    sw = shortestpath.ShortestPath("data/gangnam_Network.txt",origins,destinations)
+else:
+    origins = [252, 273, 298, 302, 372, 443, 441, 409, 430, 392, 321, 245 ]
+    destinations = [ 253,  276, 301, 299, 376, 447, 442, 400, 420, 393, 322, 246]
+    sw = shortestpath.ShortestPath("data/Network.txt",origins, destinations)
+
+
 N_STATES = sw.n_states
 trajs = sw.import_demonstrations(data0)
 feat_map = np.eye(N_STATES)
@@ -94,13 +110,27 @@ if device.type == "cuda":
     RNNMODEL.device= torch.device("cuda")
 
 print("training start")
+
 for _ in range(args.n_iters):
-    y_est = RNNMODEL(x_train.to(device))
-    loss = criterion(y_est.view((y_train.size(0)*y_train.size(1)) , y_est.size(2)), y_train.contiguous().to(device).view((y_train.size(0)*y_train.size(1),))  )
-    
-    optimizer.zero_grad()
-    loss.backward()
-    optimizer.step()
+    idxs=  np.random.permutation(x_train.shape[0])
+
+    loss_list = []
+    for i in range(int(len(idxs) / args.batch_size)):
+        batch_idxs = idxs[(i)*args.batch_size : (i+1)*args.batch_size]
+        
+        sampled_x_train = x_train[batch_idxs]
+        sampled_y_train = y_train[batch_idxs]
+
+        y_est = RNNMODEL(sampled_x_train.to(device))
+        
+        loss = criterion(y_est.view((sampled_y_train.size(0)*sampled_y_train.size(1)) , y_est.size(2)), \
+                        sampled_y_train.contiguous().to(device).view((sampled_y_train.size(0)*sampled_y_train.size(1),))  )
+        
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+
+        loss_list.append(loss.item())
 
     learner_observations = RNNMODEL.unroll_trajectories(sw.start,sw.terminal,2000,20)
     find_state = lambda x: RNNMODEL.states[x]
@@ -109,7 +139,7 @@ for _ in range(args.n_iters):
         learner_observations = learner_observations.cpu()
     learner_observations = np_find_state(learner_observations.numpy())
 
-    print("Loss :: {}".format(loss.item()))
+    print("Loss :: {}".format(np.mean(loss_list)))
     plot_summary(BC_RNN, trajs, learner_observations)
-    BC_RNN.summary.add_scalar("loss",loss.item(),BC_RNN.summary_cnt)
+    BC_RNN.summary.add_scalar("loss",np.mean(loss_list),BC_RNN.summary_cnt)
     BC_RNN.summary_cnt +=1

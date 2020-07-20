@@ -18,7 +18,8 @@ class RNN_predictor(nn.Module):
         self.state_dim= len(self.states)
         self.state_emb = nn.Embedding(self.state_dim , self.hidden)
         self.rnncell = nn.LSTM(self.hidden, self.hidden, self.num_layers, batch_first = True)
-        self.linear = nn.Linear(self.hidden,self.state_dim)
+        self.linear1 = nn.Linear(self.hidden,self.hidden)
+        self.linear2 = nn.Linear(self.hidden,self.state_dim)
 
         self.find_idx = lambda x : self.states.index(x)
         self.np_find_idx = np.vectorize(self.find_idx)
@@ -38,10 +39,13 @@ class RNN_predictor(nn.Module):
 
     def forward(self, x_train):
         x = self.state_emb(x_train)
-        hidden,cell = self.init_hidden(x_train.size(0))
 
-        output, (hidden,cell) = self.rnncell(x,(hidden,cell))
-        y_est = F.softmax(self.linear(output) , dim = 2)
+        # hidden,cell = self.init_hidden(x_train.size(0))
+        output, (hidden,cell) = self.rnncell(x)
+
+        y_est = F.relu(self.linear1(output) )
+        # y_est = F.softmax(self.linear2(y_est) , dim = 2)
+        y_est = self.linear2(y_est)
 
         return y_est
 
@@ -56,9 +60,12 @@ class RNN_predictor(nn.Module):
         done_mask = torch.zeros((num_trajs)).bool().to(self.device)
 
         for i in range(max_length):
+            if done_mask.sum() == num_trajs:
+                break
+
             input_trajs = learner_trajs[~done_mask,:]
 
-            next_prob = self.forward(input_trajs.to(self.device))
+            next_prob = F.softmax(self.forward(input_trajs.to(self.device) ) , dim = 2)
             next_prob_dist = torch.distributions.Categorical(next_prob[:,-1,:(self.state_dim-1)])
             next_idx = next_prob_dist.sample()
             next_idx.unsqueeze_(1)
