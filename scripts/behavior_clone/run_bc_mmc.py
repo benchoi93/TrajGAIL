@@ -120,7 +120,7 @@ learner_observations = np_find_state(learner_trajs.numpy())
 
 acc_list = []
 acc2_list = []
-for episode in trajs:
+for episode in test_trajs:
     for step in episode:
         prob = transition[MMCMODEL.find_idx(step.cur_state),:]
 

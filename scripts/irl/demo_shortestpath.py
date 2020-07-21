@@ -80,6 +80,16 @@ feat_map = np.eye(N_STATES)
 # MaxEnt_svf = model_summary_writer("test_MaxEnt_svf_{}_{}".format(demand_pattern,dataname),sw)
 # MaxEnt_savf = model_summary_writer("test_MaxEnt_savf_{}_{}".format(demand_pattern,dataname),sw)
 
+num_train = int(0.7 * len(trajs))
+num_test = int(0.3 * len(trajs))
+data_idxs = np.random.permutation(len(trajs))
+
+train_idxs = data_idxs[:num_train]
+test_idxs = data_idxs[num_train:(num_train+num_test)]
+
+train_trajs = [trajs[i] for i in train_idxs]
+test_trajs = [trajs[i] for i in test_idxs]
+
 MaxEnt_svf = model_summary_writer("{}/{}/test_MaxEnt_svf_{}_{}".format(dataname,demand_type,dataname, demand_type),sw)
 MaxEnt_savf = model_summary_writer("{}/{}/test_MaxEnt_savf_{}_{}".format(dataname,demand_type,dataname, demand_type),sw)
 
@@ -108,14 +118,14 @@ route_list = identify_routes(trajs)
 ####################
 ### Train MaxEnt ###
 if not os.path.exists(os.path.join(dirName,dataname,demand_type,"rewards_maxent.npy")):
-    rewards_maxent = maxent_irl(sw,feat_map, GAMMA, trajs, LEARNING_RATE*2, N_ITERS*2 , print_freq=PRINT_FREQ)
+    rewards_maxent = maxent_irl(sw,feat_map, GAMMA, train_trajs, LEARNING_RATE*2, N_ITERS*2 , print_freq=PRINT_FREQ)
     np.save( os.path.join(dirName,dataname,demand_type,"rewards_maxent.npy"),rewards_maxent)
 
 ########################################
 ### Train MaxEnt State action###
 
 if not os.path.exists(os.path.join(dirName,dataname,demand_type,"rewards_maxent_state_action.npy")):
-    rewards_maxent_state_action = maxent_irl_stateaction(sw,feat_map, GAMMA, trajs, LEARNING_RATE*2, N_ITERS*2 , print_freq=PRINT_FREQ)
+    rewards_maxent_state_action = maxent_irl_stateaction(sw,feat_map, GAMMA, train_trajs, LEARNING_RATE*2, N_ITERS*2 , print_freq=PRINT_FREQ)
     np.save( os.path.join(dirName,dataname,demand_type,"rewards_maxent_state_action.npy")  ,rewards_maxent_state_action)
 
 ############################################
@@ -129,8 +139,6 @@ generated_maxent = sw.generate_demonstrations(policy , n_trajs = 10000)
 _, policy = value_iteration.action_value_iteration(sw, rewards_maxent_state_action, GAMMA, error=0.01)
 generated_maxent_stateaction = sw.generate_demonstrations(policy , n_trajs = 10000)
 
-
-
 _, svf_policy = value_iteration.value_iteration(sw, rewards_maxent,GAMMA )
 _, savf_policy = value_iteration.action_value_iteration(sw, rewards_maxent_state_action,GAMMA )
 
@@ -140,7 +148,7 @@ svf_acc2_list = []
 savf_acc_list = []
 savf_acc2_list = []
 
-for episode in trajs:
+for episode in test_trajs:
     for step in episode:
         
         cur_idx = sw.pos2idx(step.cur_state)

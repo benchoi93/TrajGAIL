@@ -111,7 +111,10 @@ num_test = int(0.3 * len(trajs))
 data_idxs = np.random.permutation(len(trajs))
 
 train_idxs = data_idxs[:num_train]
-test_idxs = data_idxs[num_train:num_test]
+test_idxs = data_idxs[num_train:(num_train+num_test)]
+
+train_trajs = [trajs[i] for i in train_idxs]
+test_trajs = [trajs[i] for i in test_idxs]
 
 
 trajs_list = [[x.cur_state for x in episode ] + [episode[-1].next_state] + [-1]*(max_length - len(episode)) for episode in trajs] 
@@ -183,7 +186,7 @@ for _ in range(args.n_iters):
     learner_observations = np_find_state(learner_observations.numpy())
 
     print("Loss :: {}".format(np.mean(loss_list)))
-    plot_summary(BC_RNN, trajs, learner_observations)
+    plot_summary(BC_RNN, test_trajs, learner_observations)
     BC_RNN.summary.add_scalar("result/loss",np.mean(loss_list),BC_RNN.summary_cnt)
     BC_RNN.summary.add_scalar("result/acc",np.mean(acc_list),BC_RNN.summary_cnt)
     BC_RNN.summary.add_scalar("result/acc2",np.mean(acc2_list),BC_RNN.summary_cnt)
