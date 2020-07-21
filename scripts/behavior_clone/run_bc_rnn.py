@@ -2,7 +2,7 @@ import os
 import sys
 
 # os.chdir('D:\TrajGen_GAIL')
-# sys.argv=['','--gangnam','--data' ,"data/gangnam_expert.csv"]
+# sys.argv=['']
 
 sys.path.append(os.getcwd())
 
@@ -21,12 +21,13 @@ from models.behavior_clone.rnn_predictor import *
 
 def argparser():
     parser = argparse.ArgumentParser()
-    parser.add_argument('-lr','--learning-rate', default=0.1, type=float)
+    parser.add_argument('-lr','--learning-rate', default=0.01, type=float)
     parser.add_argument('-g','--gamma', default=0.5, type=float)
     parser.add_argument('-n','--n-iters',default=int(1000),type =int)
     parser.add_argument('-hd','--hidden',default=int(256),type =int)
     parser.add_argument('-pf','--print-freq',default=int(20),type =int)
     parser.add_argument('-b','--batch-size',default=int(256),type =int)
+    # parser.add_argument('-d' , '--data', default = "data/Multi_OD/One_way_Binomial.csv")
     parser.add_argument('-d' , '--data', default = "data/Single_OD/Binomial.csv")
     parser.add_argument("--cuda", default = True, type =bool)
     parser.add_argument('--gangnam', default = False, action = "store_true" )
@@ -45,8 +46,22 @@ PRINT_FREQ = args.print_freq
 GAMMA = args.gamma
 data0 = args.data
 
-demand_pattern = data0.split('/')[-2]
-dataname = data0.split('/')[-1].split('.csv')[0]
+if args.gangnam:
+    dataname = "gangnam"
+    demand_type = "dtg"
+else:
+    data_split = []
+    splited = data0
+    while True:
+        splited = os.path.split(splited)
+        if len(splited[1]) == 0 :
+            break
+        else:
+            data_split.append(splited[1])
+            splited = splited[0]
+
+    dataname = data_split[1]
+    demand_type = data_split[0]
 
 
 if args.gangnam:
@@ -84,10 +99,20 @@ else:
     print("Directory " + os.path.join(dirName,dataname) +  " already exists")      
 
 
-BC_RNN = model_summary_writer("test_BC_RNN_{}_{}".format(demand_pattern,dataname),sw)
+# BC_RNN = model_summary_writer("test_BC_RNN_{}_{}".format(demand_pattern,dataname),sw)
+# BC_RNN = model_summary_writer("{}/test_BC_RNN_{}_{}".format(dataname,dataname, demand_type),sw)
+BC_RNN = model_summary_writer("{}/{}/test_BC_RNN_{}_{}".format(dataname, demand_type,dataname, demand_type),sw)
 
 max_length = max(list(map(len , trajs)))
 PAD_IDX = -1
+
+num_train = int(0.7 * len(trajs))
+num_test = int(0.3 * len(trajs))
+data_idxs = np.random.permutation(len(trajs))
+
+train_idxs = data_idxs[:num_train]
+test_idxs = data_idxs[num_train:num_test]
+
 
 trajs_list = [[x.cur_state for x in episode ] + [episode[-1].next_state] + [-1]*(max_length - len(episode)) for episode in trajs] 
 trajs_np = np.array(trajs_list)
@@ -99,10 +124,10 @@ idx_seq = RNNMODEL.states_to_idx(trajs_np)
 # self = RNNMODEL
 seq = torch.LongTensor(idx_seq)
 
-x_train = seq[:, :(seq.size(1)-1)]
-y_train = seq[:, 1:]
+x_train = seq[train_idxs, :(seq.size(1)-1)]
+y_train = seq[train_idxs, 1:]
 
-criterion = torch.nn.CrossEntropyLoss(ignore_index=RNNMODEL.pad_idx)
+criterion = torch.nn.NLLLoss(ignore_index=RNNMODEL.pad_idx)
 optimizer = torch.optim.Adam(RNNMODEL.parameters(),lr = args.learning_rate)
 
 if device.type == "cuda":
@@ -112,9 +137,13 @@ if device.type == "cuda":
 print("training start")
 
 for _ in range(args.n_iters):
+
     idxs=  np.random.permutation(x_train.shape[0])
 
     loss_list = []
+    acc_list = []
+    acc2_list = []
+
     for i in range(int(len(idxs) / args.batch_size)):
         batch_idxs = idxs[(i)*args.batch_size : (i+1)*args.batch_size]
         
@@ -130,7 +159,21 @@ for _ in range(args.n_iters):
         loss.backward()
         optimizer.step()
 
+        pred = torch.argmax(y_est,dim=2) == sampled_y_train.to(device)
+        acc = pred.float().mean()
+        
+        prob = y_est.exp()
+        prob = prob.view((prob.size(0) * prob.size(1) , prob.size(2)))
+
+        prob_idxs = sampled_y_train
+        prob_idxs = sampled_y_train.view(prob.size(0))
+
+        idxs0 = torch.arange(0,prob.shape[0]).to(device)
+        acc2 = torch.mean(prob[idxs0][idxs0, prob_idxs[idxs0]])
+        
+        acc2_list.append(acc2.item())
         loss_list.append(loss.item())
+        acc_list.append(acc.item())
 
     learner_observations = RNNMODEL.unroll_trajectories(sw.start,sw.terminal,2000,20)
     find_state = lambda x: RNNMODEL.states[x]
@@ -141,5 +184,12 @@ for _ in range(args.n_iters):
 
     print("Loss :: {}".format(np.mean(loss_list)))
     plot_summary(BC_RNN, trajs, learner_observations)
-    BC_RNN.summary.add_scalar("loss",np.mean(loss_list),BC_RNN.summary_cnt)
+    BC_RNN.summary.add_scalar("result/loss",np.mean(loss_list),BC_RNN.summary_cnt)
+    BC_RNN.summary.add_scalar("result/acc",np.mean(acc_list),BC_RNN.summary_cnt)
+    BC_RNN.summary.add_scalar("result/acc2",np.mean(acc2_list),BC_RNN.summary_cnt)
     BC_RNN.summary_cnt +=1
+
+
+
+
+

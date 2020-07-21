@@ -1,7 +1,7 @@
 import os
 import sys
 
-# os.chdir('/Users/seongjinchoi/Downloads/TrajGen_GAIL')
+# os.chdir('D:\TrajGen_GAIL')
 # sys.argv=['']
 
 sys.path.append(os.getcwd())
@@ -26,7 +26,8 @@ def argparser():
     parser.add_argument('-n','--n-iters',default=int(1000),type =int)
     parser.add_argument('-hd','--hidden',default=int(256),type =int)
     parser.add_argument('-pf','--print-freq',default=int(20),type =int)
-    parser.add_argument('-d' , '--data', default = "data/Single_OD/Binomial.csv")
+    # parser.add_argument('-d' , '--data', default = "data/Single_OD/Binomial.csv")
+    parser.add_argument('-d' , '--data', default = "data/Multi_OD/One_way_Binomial.csv")
     parser.add_argument('--gangnam', default = False, action = "store_true" )
     return parser.parse_args()
 args = argparser()
@@ -38,8 +39,25 @@ PRINT_FREQ = args.print_freq
 GAMMA = args.gamma
 data0 = args.data
 
-dataname = data0.split('/')[-1].split('.csv')[0]
-demand_type = data0.split('/')[-2]
+
+
+if args.gangnam:
+    dataname = "gangnam"
+    demand_type = "dtg"
+else:
+    data_split = []
+    splited = data0
+    while True:
+        splited = os.path.split(splited)
+        if len(splited[1]) == 0 :
+            break
+        else:
+            data_split.append(splited[1])
+            splited = splited[0]
+
+    dataname = data_split[1]
+    demand_type = data_split[0]
+
 
 if args.gangnam:
     origins=[222,223,224,225,226,227,228,
@@ -76,12 +94,22 @@ else:
     print("Directory " + os.path.join(dirName,dataname) +  " already exists")      
 
 
-BC_MMC = model_summary_writer("test_BC_MMC_{}_{}".format(demand_type, dataname),sw)
+# BC_MMC = model_summary_writer("test_BC_MMC_{}_{}".format(demand_type, dataname),sw)
+BC_MMC = model_summary_writer("{}/{}/test_BC_MMC_{}_{}".format(dataname, demand_type,dataname, demand_type),sw)
+
+num_train = int(0.7 * len(trajs))
+num_test = int(0.3 * len(trajs))
+data_idxs = np.random.permutation(len(trajs))
+
+train_idxs = data_idxs[:num_train]
+test_idxs = data_idxs[num_train:(num_train + num_test)]
+
+train_trajs = [trajs[i] for i in train_idxs]
+test_trajs = [trajs[i] for i in test_idxs]
+
 max_length = max(list(map(len , trajs)))
-
 MMCMODEL = MMC_predictor(sw, max_length)
-
-transition = MMCMODEL.train(trajs)
+transition = MMCMODEL.train(train_trajs)
 
 learner_trajs = MMCMODEL.unroll_trajectories(transition, 20000, 20)
 
@@ -90,8 +118,25 @@ np_find_state = np.vectorize(find_state)
 
 learner_observations = np_find_state(learner_trajs.numpy())
 
-plot_summary(BC_MMC, trajs, learner_observations, keep_unknown = False)
+acc_list = []
+acc2_list = []
+for episode in trajs:
+    for step in episode:
+        prob = transition[MMCMODEL.find_idx(step.cur_state),:]
+
+        acc  = torch.argmax(prob) == MMCMODEL.find_idx(step.next_state)
+        acc2 = prob[MMCMODEL.find_idx(step.next_state)]
+
+        acc_list.append( acc.float().item() )
+        acc2_list.append( acc2.float().item() )
+
+plot_summary(BC_MMC, test_trajs, learner_observations, keep_unknown = False)
+BC_MMC.summary.add_scalar("result/acc",np.mean(acc_list) , BC_MMC.summary_cnt)
+BC_MMC.summary.add_scalar("result/acc2",np.mean(acc2_list) , BC_MMC.summary_cnt)
 
 BC_MMC.summary_cnt = N_ITERS
-plot_summary(BC_MMC, trajs, learner_observations, keep_unknown = False)
+BC_MMC.summary.add_scalar("result/acc",np.mean(acc_list) , BC_MMC.summary_cnt)
+BC_MMC.summary.add_scalar("result/acc2",np.mean(acc2_list) , BC_MMC.summary_cnt)
+plot_summary(BC_MMC, test_trajs, learner_observations, keep_unknown = False)
+
 

@@ -45,8 +45,7 @@ class RNN_predictor(nn.Module):
 
         y_est = F.relu(self.linear1(output) )
         # y_est = F.softmax(self.linear2(y_est) , dim = 2)
-        y_est = self.linear2(y_est)
-
+        y_est = F.log_softmax(self.linear2(y_est), dim =2)
         return y_est
 
     def unroll_trajectories(self,start_state, end_state,num_trajs, max_length = 20):
@@ -65,7 +64,8 @@ class RNN_predictor(nn.Module):
 
             input_trajs = learner_trajs[~done_mask,:]
 
-            next_prob = F.softmax(self.forward(input_trajs.to(self.device) ) , dim = 2)
+            # next_prob = F.softmax(self.forward(input_trajs.to(self.device) ) , dim = 2)
+            next_prob = self.forward(input_trajs.to(self.device) ).exp()
             next_prob_dist = torch.distributions.Categorical(next_prob[:,-1,:(self.state_dim-1)])
             next_idx = next_prob_dist.sample()
             next_idx.unsqueeze_(1)

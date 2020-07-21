@@ -1,6 +1,9 @@
 import os 
 import sys
 
+# os.chdir("D:\\TrajGen_GAIL")
+# sys.argv=['','--data', 'data\\Multi_OD\\One_way_Binomial.csv']
+
 sys.path.append(os.getcwd())
 
 import numpy as np
@@ -36,12 +39,22 @@ PRINT_FREQ = args.print_freq
 GAMMA = args.gamma
 data0 = args.data
 
-if sys.platform == "win32":
-    dataname = data0.split(chr(92))[-1].split('.csv')[0]
-    demand_pattern = data0.split(chr(92))[-2]
+if args.gangnam:
+    dataname = "gangnam"
+    demand_type = "dtg"
 else:
-    dataname = data0.split('/')[-1].split('.csv')[0]
-    demand_pattern = data0.split('/')[-2]
+    data_split = []
+    splited = data0
+    while True:
+        splited = os.path.split(splited)
+        if len(splited[1]) == 0 :
+            break
+        else:
+            data_split.append(splited[1])
+            splited = splited[0]
+
+    dataname = data_split[1]
+    demand_type = data_split[0]
 
 if args.gangnam:
     origins=[222,223,224,225,226,227,228,
@@ -64,8 +77,11 @@ N_STATES = sw.n_states
 trajs = sw.import_demonstrations(data0)
 feat_map = np.eye(N_STATES)
 
-MaxEnt_svf = model_summary_writer("test_MaxEnt_svf_{}_{}".format(demand_pattern,dataname),sw)
-MaxEnt_savf = model_summary_writer("test_MaxEnt_savf_{}_{}".format(demand_pattern,dataname),sw)
+# MaxEnt_svf = model_summary_writer("test_MaxEnt_svf_{}_{}".format(demand_pattern,dataname),sw)
+# MaxEnt_savf = model_summary_writer("test_MaxEnt_savf_{}_{}".format(demand_pattern,dataname),sw)
+
+MaxEnt_svf = model_summary_writer("{}/{}/test_MaxEnt_svf_{}_{}".format(dataname,demand_type,dataname, demand_type),sw)
+MaxEnt_savf = model_summary_writer("{}/{}/test_MaxEnt_savf_{}_{}".format(dataname,demand_type,dataname, demand_type),sw)
 
 dirName = "Result"
 if not os.path.exists(dirName):
@@ -80,20 +96,32 @@ if not os.path.exists(os.path.join(dirName,dataname)):
 else:    
     print("Directory " + os.path.join(dirName,dataname) +  " already exists")      
 
+if not os.path.exists(os.path.join(dirName,dataname,demand_type)):
+    os.mkdir(os.path.join(dirName,dataname,demand_type))
+    print("Directory " + os.path.join(dirName,dataname,demand_type) +  " Created ")
+else:    
+    print("Directory " + os.path.join(dirName,dataname,demand_type) +  " already exists")      
+
+
 route_list = identify_routes(trajs)
 
 ####################
 ### Train MaxEnt ###
-rewards_maxent = maxent_irl(sw,feat_map, GAMMA, trajs, LEARNING_RATE*2, N_ITERS*2 , print_freq=PRINT_FREQ)
-np.save( os.path.join(dirName,dataname,"rewards_maxent.npy"),rewards_maxent)
+if not os.path.exists(os.path.join(dirName,dataname,demand_type,"rewards_maxent.npy")):
+    rewards_maxent = maxent_irl(sw,feat_map, GAMMA, trajs, LEARNING_RATE*2, N_ITERS*2 , print_freq=PRINT_FREQ)
+    np.save( os.path.join(dirName,dataname,demand_type,"rewards_maxent.npy"),rewards_maxent)
 
 ########################################
 ### Train MaxEnt State action###
-rewards_maxent_state_action = maxent_irl_stateaction(sw,feat_map, GAMMA, trajs, LEARNING_RATE*2, N_ITERS*2 , print_freq=PRINT_FREQ)
-np.save( os.path.join(dirName,dataname,"rewards_maxent_state_action.npy")  ,rewards_maxent_state_action)
 
-rewards_maxent = np.load(os.path.join(dirName,dataname,"rewards_maxent.npy"))
-rewards_maxent_state_action = np.load(os.path.join(dirName,dataname,"rewards_maxent_state_action.npy"))
+if not os.path.exists(os.path.join(dirName,dataname,demand_type,"rewards_maxent_state_action.npy")):
+    rewards_maxent_state_action = maxent_irl_stateaction(sw,feat_map, GAMMA, trajs, LEARNING_RATE*2, N_ITERS*2 , print_freq=PRINT_FREQ)
+    np.save( os.path.join(dirName,dataname,demand_type,"rewards_maxent_state_action.npy")  ,rewards_maxent_state_action)
+
+############################################
+# Test
+rewards_maxent = np.load(os.path.join(dirName,dataname,demand_type,"rewards_maxent.npy"))
+rewards_maxent_state_action = np.load(os.path.join(dirName,dataname,demand_type,"rewards_maxent_state_action.npy"))
 
 _, policy = value_iteration.value_iteration(sw, rewards_maxent, GAMMA, error=0.01)
 generated_maxent = sw.generate_demonstrations(policy , n_trajs = 10000)
@@ -101,12 +129,66 @@ generated_maxent = sw.generate_demonstrations(policy , n_trajs = 10000)
 _, policy = value_iteration.action_value_iteration(sw, rewards_maxent_state_action, GAMMA, error=0.01)
 generated_maxent_stateaction = sw.generate_demonstrations(policy , n_trajs = 10000)
 
+
+
+_, svf_policy = value_iteration.value_iteration(sw, rewards_maxent,GAMMA )
+_, savf_policy = value_iteration.action_value_iteration(sw, rewards_maxent_state_action,GAMMA )
+
+svf_acc_list = []
+svf_acc2_list = []
+
+savf_acc_list = []
+savf_acc2_list = []
+
+for episode in trajs:
+    for step in episode:
+        
+        cur_idx = sw.pos2idx(step.cur_state)
+        action_list = np.array(sw.get_action_list(step.cur_state))
+        action_prob = svf_policy[cur_idx, action_list]
+
+        acc = np.argmax(action_prob) == step.action
+        acc2 = action_prob[np.where(action_list == step.action)[0]]
+
+        svf_acc_list.append( acc )
+        svf_acc2_list.append( acc2[0] )
+
+        action_prob = savf_policy[cur_idx, action_list]
+
+        acc = np.argmax(action_prob) == step.action
+        acc2 = action_prob[np.where(action_list == step.action)[0]]
+
+        savf_acc_list.append( acc )
+        savf_acc2_list.append( acc2[0] )
+
+svf_acc_list = np.array(svf_acc_list , np.float64)
+svf_acc2_list = np.array(svf_acc2_list , np.float64)
+
+savf_acc_list  = np.array(savf_acc_list , np.float64)
+savf_acc2_list = np.array(savf_acc2_list , np.float64)
+
+
+
+MaxEnt_svf.summary.add_scalar("result/acc",np.mean(svf_acc_list) , MaxEnt_svf.summary_cnt)
+MaxEnt_svf.summary.add_scalar("result/acc2",np.mean(svf_acc2_list) , MaxEnt_svf.summary_cnt)
 plot_summary_maxent(MaxEnt_svf, trajs , generated_maxent)
+
+MaxEnt_savf.summary.add_scalar("result/acc",np.mean(savf_acc_list)   , MaxEnt_savf.summary_cnt)
+MaxEnt_savf.summary.add_scalar("result/acc2",np.mean(savf_acc2_list) , MaxEnt_savf.summary_cnt)
 plot_summary_maxent(MaxEnt_savf, trajs , generated_maxent_stateaction)
 
 MaxEnt_svf.summary_cnt+=N_ITERS
 MaxEnt_savf.summary_cnt+=N_ITERS
 
+MaxEnt_svf.summary.add_scalar("result/acc",np.mean(svf_acc_list  ) , MaxEnt_svf.summary_cnt)
+MaxEnt_svf.summary.add_scalar("result/acc2",np.mean(svf_acc2_list) , MaxEnt_svf.summary_cnt)
 plot_summary_maxent(MaxEnt_svf, trajs , generated_maxent)
+
+MaxEnt_savf.summary.add_scalar("result/acc",np.mean(savf_acc_list  ) , MaxEnt_savf.summary_cnt)
+MaxEnt_savf.summary.add_scalar("result/acc2",np.mean(savf_acc2_list) , MaxEnt_savf.summary_cnt)
 plot_summary_maxent(MaxEnt_savf, trajs , generated_maxent_stateaction)
+
+
+
+
 

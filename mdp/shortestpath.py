@@ -328,7 +328,7 @@ class ShortestPath(object):
     trajs       a list of trajectories - each element in the list is a list of Steps representing an episode
     """
 
-    if demopath.split(".")[1] == "pkl":
+    if demopath.split(".")[-1] == "pkl":
       import pickle
       trajs = pickle.load(open(demopath,'rb'))
       route_list = identify_routes(trajs)
@@ -336,7 +336,7 @@ class ShortestPath(object):
       self.max_route_length = max_route_length
       return trajs
       
-    elif demopath.split(".")[1] == "csv":
+    elif demopath.split(".")[-1] == "csv":
       demo = pd.read_csv(demopath)
 
       trajs = []
