@@ -15,7 +15,7 @@ datalist = os.listdir("data/" + args.data)
 if args.model == "IRL":
     # IRL Test
     for data0 in datalist:
-        print(".\\data\\"+args.data+"\\" + data0)
+        print(os.path.join('.','data',args.data,data0))
         subprocess.run(["python" , 
                         os.path.join('.','scripts','irl','demo_shortestpath.py'),
                         "--data",
@@ -24,7 +24,7 @@ if args.model == "IRL":
 elif args.model == "MMC":
 # MMC Test
     for data0 in datalist:
-        print(".\\data\\"+args.data+"\\" + data0)
+        print(os.path.join('.','data',args.data,data0))
         subprocess.run(["python" , 
                         os.path.join('.','scripts','behavior_clone','run_bc_mmc.py'),
                         "--data",
@@ -33,7 +33,7 @@ elif args.model == "MMC":
 elif args.model == "RNN":
     # RNN Test
     for data0 in datalist:
-        print(".\\data\\"+args.data+"\\" + data0)
+        print(os.path.join('.','data',args.data,data0))
         subprocess.run(["python" , 
                         os.path.join('.','scripts','behavior_clone','run_bc_rnn.py'),
                         "--data",
