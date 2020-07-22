@@ -130,6 +130,9 @@ seq = torch.LongTensor(idx_seq)
 x_train = seq[train_idxs, :(seq.size(1)-1)]
 y_train = seq[train_idxs, 1:]
 
+x_test = seq[test_idxs, :(seq.size(1)-1)]
+y_test = seq[test_idxs, 1:]
+
 criterion = torch.nn.NLLLoss(ignore_index=RNNMODEL.pad_idx)
 optimizer = torch.optim.Adam(RNNMODEL.parameters(),lr = args.learning_rate)
 
@@ -144,10 +147,8 @@ for _ in range(args.n_iters):
     idxs=  np.random.permutation(x_train.shape[0])
 
     loss_list = []
-    acc_list = []
-    acc2_list = []
-
     for i in range(int(len(idxs) / args.batch_size)):
+        #TRAINING
         batch_idxs = idxs[(i)*args.batch_size : (i+1)*args.batch_size]
         
         sampled_x_train = x_train[batch_idxs]
@@ -161,21 +162,33 @@ for _ in range(args.n_iters):
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
+        loss_list.append(loss.item())
 
-        pred = torch.argmax(y_est,dim=2) == sampled_y_train.to(device)
+    acc_list = []
+    acc2_list = []
+    idxs=  np.random.permutation(x_test.shape[0])
+    for i in range(int(len(idxs) / args.batch_size)):
+        #TESTING
+        batch_idxs = idxs[(i)*args.batch_size : (i+1)*args.batch_size]
+        
+        sampled_x_test = x_test[batch_idxs]
+        sampled_y_test = y_test[batch_idxs]
+
+        y_est = RNNMODEL(sampled_x_test.to(device))
+
+        pred = torch.argmax(y_est,dim=2) == sampled_x_test.to(device)
         acc = pred.float().mean()
         
         prob = y_est.exp()
         prob = prob.view((prob.size(0) * prob.size(1) , prob.size(2)))
 
-        prob_idxs = sampled_y_train
-        prob_idxs = sampled_y_train.view(prob.size(0))
+        prob_idxs = sampled_y_test
+        prob_idxs = sampled_y_test.view(prob.size(0))
 
         idxs0 = torch.arange(0,prob.shape[0]).to(device)
         acc2 = torch.mean(prob[idxs0][idxs0, prob_idxs[idxs0]])
         
         acc2_list.append(acc2.item())
-        loss_list.append(loss.item())
         acc_list.append(acc.item())
 
     learner_observations = RNNMODEL.unroll_trajectories(sw.start,sw.terminal,2000,20)
