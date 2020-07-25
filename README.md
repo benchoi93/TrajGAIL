@@ -6,7 +6,7 @@ This repository include implementations of :
  - Markov Mobility Chain Model for next location prediction (Gambs et al. 2012)
  - RNN based trajectory generator (Choi et al. 2018) 
  - MaxEnt inverse reinforcement learning (Ziebart et al. 2008)
- - Generative Adversarial Imitation Learning (Ho et al. 2016)
+ - TrajGAIL based on Generative Adversarial Imitation Learning (Ho et al. 2016)
  - ShortestPath World (MDP for routing imitations)
  
 ### Data availability
