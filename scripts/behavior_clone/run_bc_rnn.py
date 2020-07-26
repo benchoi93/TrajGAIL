@@ -206,6 +206,22 @@ for _ in range(args.n_iters):
     BC_RNN.summary_cnt +=1
 
 
+from matplotlib import pyplot
+pyplot.cla()
 
+expert_lengths = list(map(lambda x : len(x) , trajs))
+learner_lengths = np.apply_along_axis(lambda x:np.count_nonzero(x+1) , 1, learner_observations)
 
+maxlen  = max(max(expert_lengths),max(learner_lengths))
+minlen  = min(min(expert_lengths),min(learner_lengths))
+
+from matplotlib import pyplot
+pyplot.hist(expert_lengths,range(minlen,maxlen+1), alpha=0.5, label='expert',density=True)
+pyplot.hist(learner_lengths-1, range(minlen,maxlen+1), alpha=0.5, label='learner',density=True)
+pyplot.yscale('log')
+pyplot.xlabel("Length")
+pyplot.ylabel("Frequency")
+pyplot.legend(loc='upper right')
+pyplot.xticks(range(minlen,maxlen+1))
+pyplot.savefig("{}/plot/{}_{}_RNN.png".format(dirName,dataname,demand_type.split('.')[0]))
 

@@ -1,16 +1,17 @@
 import os
+from os.path import dirname
 import sys
 
-# os.chdir('D:\TrajGen_GAIL')
-# sys.argv=['']
+# os.chdir('/Users/seongjinchoi/Downloads/TrajGen_GAIL')
+# sys.argv=['--data "data/Multi_OD/One_way_Binomial.csv"']
 
 sys.path.append(os.getcwd())
 
 import numpy as np
 import argparse
-import pandas as pd
-import datetime
-from tensorboardX import SummaryWriter
+# import pandas as pd
+# import datetime
+# from tensorboardX import SummaryWriter
 
 from mdp import shortestpath
 
@@ -27,7 +28,7 @@ def argparser():
     parser.add_argument('-hd','--hidden',default=int(256),type =int)
     parser.add_argument('-pf','--print-freq',default=int(20),type =int)
     # parser.add_argument('-d' , '--data', default = "data/Single_OD/Binomial.csv")
-    parser.add_argument('-d' , '--data', default = "data/Multi_OD/One_way_Binomial.csv")
+    parser.add_argument('-d' , '--data', default = "data/Multi_OD/One_way_C_Logit.csv")
     parser.add_argument('--gangnam', default = False, action = "store_true" )
     return parser.parse_args()
 args = argparser()
@@ -38,8 +39,6 @@ N_ITERS = args.n_iters
 PRINT_FREQ = args.print_freq
 GAMMA = args.gamma
 data0 = args.data
-
-
 
 if args.gangnam:
     dataname = "gangnam"
@@ -118,6 +117,9 @@ np_find_state = np.vectorize(find_state)
 
 learner_observations = np_find_state(learner_trajs.numpy())
 
+np.save("{}/{}/transition_{}_{}.npy".format(dirName,dataname,dataname, demand_type.split('.')[0]) , transition)
+
+
 acc_list = []
 acc2_list = []
 for episode in test_trajs:
@@ -139,4 +141,21 @@ BC_MMC.summary.add_scalar("result/acc",np.mean(acc_list) , BC_MMC.summary_cnt)
 BC_MMC.summary.add_scalar("result/acc2",np.mean(acc2_list) , BC_MMC.summary_cnt)
 plot_summary(BC_MMC, test_trajs, learner_observations, keep_unknown = False)
 
+from matplotlib import pyplot
+pyplot.cla()
+expert_lengths = list(map(lambda x : len(x) , trajs))
+learner_lengths = np.apply_along_axis(lambda x:np.count_nonzero(x+1) , 1, learner_observations)
 
+maxlen  = max(max(expert_lengths),max(learner_lengths))
+minlen  = min(min(expert_lengths),min(learner_lengths))
+
+
+pyplot.hist(expert_lengths,range(minlen,maxlen+1), alpha=0.5, label='expert',density=True)
+pyplot.hist(learner_lengths-1, range(minlen,maxlen+1), alpha=0.5, label='learner',density=True)
+pyplot.yscale('log')
+pyplot.xlabel("Length")
+pyplot.ylabel("Frequency")
+pyplot.legend(loc='upper right')
+pyplot.xticks(range(minlen,maxlen+1))
+pyplot.savefig("{}/plot/{}_{}_MMC.png".format(dirName,dataname,demand_type.split('.')[0]))
+pyplot.close()

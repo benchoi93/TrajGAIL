@@ -4,3 +4,5 @@ Reuslt
 .DS_Store
 data/gangnam*
 Result/
+*.png
+settings.json
