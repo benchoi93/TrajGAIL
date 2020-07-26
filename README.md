@@ -1,11 +1,12 @@
-# TrajGen_GAIL
+# TrajGAIL
 
 ### Introduction
 Generative model for urban vehicle trajectories based on Deep Learning 
 This repository include implementations of :
- - RNN based trajectory generator (Choi et al. 2018) [not yet]
+ - Markov Mobility Chain Model for next location prediction (Gambs et al. 2012)
+ - RNN based trajectory generator (Choi et al. 2018) 
  - MaxEnt inverse reinforcement learning (Ziebart et al. 2008)
- - Generative Adversarial Imitation Learning (Ho et al. 2016)
+ - TrajGAIL based on Generative Adversarial Imitation Learning (Ho et al. 2016)
  - ShortestPath World (MDP for routing imitations)
  
 ### Data availability
@@ -34,7 +35,13 @@ pip install -r requirement.txt
 
 <Bash terminal>
 
-To run Behavior Cloning Test
+To run Behavior Cloning MMC Test
+
+```bash
+python scripts/behavior_clone/run_bc_rnn.py
+```
+
+To run Behavior Cloning RNN Test
 
 ```bash
 python scripts/behavior_clone/run_bc_rnn.py
@@ -48,10 +55,10 @@ python scripts/irl/demo_shortestpath.py
 ```
 
 
-To run GAIL
+To run TrajGAIL
 
 ```bash
-python scripts/gail/run_gail_wasser_rnn.py
+python scripts/gail/run_gail.py
 ```
 
 
