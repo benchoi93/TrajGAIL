@@ -6,7 +6,7 @@ This repository include implementations of :
  - Markov Mobility Chain Model for next location prediction (Gambs et al. 2012)
  - RNN based trajectory generator (Choi et al. 2018) 
  - MaxEnt inverse reinforcement learning (Ziebart et al. 2008)
- - TrajGAIL based on Generative Adversarial Imitation Learning (Ho et al. 2016)
+ - TrajGAIL based on Generative Adversarial Imitation Learning (Ho et al. 2016, Choi et al. 2020)
  - ShortestPath World (MDP for routing imitations)
  
 ### Data availability
@@ -62,3 +62,14 @@ python scripts/gail/run_gail.py
 ```
 
 
+### Citations
+If you use this code for your research, please cite our paper.
+
+```bash
+@article{choi2020trajgail,
+  title={TrajGAIL: Generating Urban Trajectories using Generative Adversarial Imitation Learning},
+  author={Choi, Seongjin and Kim, Jiwon and Yeo, Hwasoo},
+  journal={arXiv preprint arXiv:2007.14189},
+  year={2020}
+}
+```
