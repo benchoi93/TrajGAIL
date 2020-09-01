@@ -117,8 +117,12 @@ np_find_state = np.vectorize(find_state)
 
 learner_observations = np_find_state(learner_trajs.numpy())
 
+print("Saving Transition matrix to :: {}/{}/transition_{}_{}.npy".format(dirName,dataname,dataname, demand_type.split('.')[0]))
 np.save("{}/{}/transition_{}_{}.npy".format(dirName,dataname,dataname, demand_type.split('.')[0]) , transition)
 
+
+avg_entropy = np.nanmean(torch.distributions.Categorical(transition).entropy().numpy())
+print(avg_entropy)
 
 acc_list = []
 acc2_list = []

@@ -205,6 +205,16 @@ for _ in range(args.n_iters):
     BC_RNN.summary.add_scalar("result/acc2",np.mean(acc2_list),BC_RNN.summary_cnt)
     BC_RNN.summary_cnt +=1
 
+torch.save(RNNMODEL.state_dict() ,
+            "{}/{}/RNN_{}_{}.pth".format(\
+                dirName,dataname,dataname, demand_type.split('.')[0]
+                                                ) 
+            )
+
+print("The model is saved at :: {}/{}/RNN_{}_{}.pth ".format(\
+                dirName,dataname,dataname, demand_type.split('.')[0]
+                                                ) )
+
 
 from matplotlib import pyplot
 pyplot.cla()

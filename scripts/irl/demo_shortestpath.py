@@ -175,8 +175,6 @@ svf_acc2_list = np.array(svf_acc2_list , np.float64)
 savf_acc_list  = np.array(savf_acc_list , np.float64)
 savf_acc2_list = np.array(savf_acc2_list , np.float64)
 
-
-
 MaxEnt_svf.summary.add_scalar("result/acc",np.mean(svf_acc_list) , MaxEnt_svf.summary_cnt)
 MaxEnt_svf.summary.add_scalar("result/acc2",np.mean(svf_acc2_list) , MaxEnt_svf.summary_cnt)
 plot_summary_maxent(MaxEnt_svf, trajs , generated_maxent)
