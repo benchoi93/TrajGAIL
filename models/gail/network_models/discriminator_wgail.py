@@ -4,8 +4,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 # import gym
 from torch.nn.utils.rnn import pack_padded_sequence
-from network_models.discriminator_pytorch import Discriminator as Discrim_vanilla
-from network_models.policy_net_rnn import StateSeqEmb
+from models.gail.network_models.discriminator_pytorch import Discriminator as Discrim_vanilla
+from models.gail.network_models.policy_net_rnn import StateSeqEmb
 
 class Discriminator(Discrim_vanilla):
     def __init__(self, state_dim, action_dim, hidden:int, disttype = "categorical", num_layers = 3):
