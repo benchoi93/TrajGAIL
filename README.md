@@ -8,7 +8,22 @@ This repository include implementations of :
  - MaxEnt inverse reinforcement learning (Ziebart et al. 2008)
  - TrajGAIL based on Generative Adversarial Imitation Learning (Ho et al. 2016, Choi et al. 2020)
  - ShortestPath World (MDP for routing imitations)
- 
+
+### Citations
+If you use this code for your research, please cite our paper.
+
+```bash
+@article{choi2021trajgail,
+  title={TrajGAIL: Generating urban vehicle trajectories using generative adversarial imitation learning},
+  author={Choi, Seongjin and Kim, Jiwon and Yeo, Hwasoo},
+  journal={Transportation Research Part C: Emerging Technologies},
+  volume={128},
+  pages={103091},
+  year={2021},
+  publisher={Elsevier}
+}
+```
+
 ### Data availability
 Due to the public availability issue of taxi data of Gangnam District, it is not possible to upload the taxi data. 
 
@@ -61,15 +76,3 @@ To run TrajGAIL
 python scripts/gail/run_gail.py
 ```
 
-
-### Citations
-If you use this code for your research, please cite our paper.
-
-```bash
-@article{choi2020trajgail,
-  title={TrajGAIL: Generating Urban Trajectories using Generative Adversarial Imitation Learning},
-  author={Choi, Seongjin and Kim, Jiwon and Yeo, Hwasoo},
-  journal={arXiv preprint arXiv:2007.14189},
-  year={2020}
-}
-```
