@@ -1,36 +1,39 @@
+import sys
 import os
+sys.path.append(os.getcwd())
+
+from pathlib import Path
+from matplotlib import pyplot
+from models.behavior_clone.mmc_predictor import *
+from models.utils.plotutils import *
+from models.utils.utils import *
+from mdp import shortestpath
+import argparse
+import numpy as np
 from os.path import dirname
 import sys
 
-# os.chdir('/Users/seongjinchoi/Downloads/TrajGen_GAIL')
-# sys.argv=['--data "data/Multi_OD/One_way_Binomial.csv"']
 
-sys.path.append(os.getcwd())
 
-import numpy as np
-import argparse
 # import pandas as pd
 # import datetime
 # from tensorboardX import SummaryWriter
 
-from mdp import shortestpath
-
-from models.utils.utils import *
-from models.utils.plotutils import *
-
-from models.behavior_clone.mmc_predictor import *
 
 def argparser():
     parser = argparse.ArgumentParser()
-    parser.add_argument('-lr','--learning-rate', default=0.1, type=float)
-    parser.add_argument('-g','--gamma', default=0.5, type=float)
-    parser.add_argument('-n','--n-iters',default=int(1000),type =int)
-    parser.add_argument('-hd','--hidden',default=int(256),type =int)
-    parser.add_argument('-pf','--print-freq',default=int(20),type =int)
+    parser.add_argument('-lr', '--learning-rate', default=0.1, type=float)
+    parser.add_argument('-g', '--gamma', default=0.5, type=float)
+    parser.add_argument('-n', '--n-iters', default=int(1000), type=int)
+    parser.add_argument('-hd', '--hidden', default=int(256), type=int)
+    parser.add_argument('-pf', '--print-freq', default=int(20), type=int)
     # parser.add_argument('-d' , '--data', default = "data/Single_OD/Binomial.csv")
-    parser.add_argument('-d' , '--data', default = "data/Multi_OD/One_way_C_Logit.csv")
-    parser.add_argument('--gangnam', default = False, action = "store_true" )
+    parser.add_argument(
+        '-d', '--data', default="data/Multi_OD/One_way_C_Logit.csv")
+    parser.add_argument('--gangnam', default=False, action="store_true")
     return parser.parse_args()
+
+
 args = argparser()
 
 # def main(data0, outpath,lr=0.1 , n_iters=1000 , print_freq=20, gamma=0.5 ):
@@ -48,7 +51,7 @@ else:
     splited = data0
     while True:
         splited = os.path.split(splited)
-        if len(splited[1]) == 0 :
+        if len(splited[1]) == 0:
             break
         else:
             data_split.append(splited[1])
@@ -59,20 +62,22 @@ else:
 
 
 if args.gangnam:
-    origins=[222,223,224,225,226,227,228,
-            214,213,212,211,210,209,208,
-            190,189,188,187,186,185,184,
-            167,168,169,170,171,172,173,174,175,176]
+    origins = [222, 223, 224, 225, 226, 227, 228,
+               214, 213, 212, 211, 210, 209, 208,
+               190, 189, 188, 187, 186, 185, 184,
+               167, 168, 169, 170, 171, 172, 173, 174, 175, 176]
 
-    destinations=[191,192,193,194,195,196,197,
-                183,182,181,180,179,178,177,
-                221,220,219,218,217,216,215,
-                198,199,200,201,202,203,204,205,206,207 ]
-    sw = shortestpath.ShortestPath("data/gangnam_Network.txt",origins,destinations)
+    destinations = [191, 192, 193, 194, 195, 196, 197,
+                    183, 182, 181, 180, 179, 178, 177,
+                    221, 220, 219, 218, 217, 216, 215,
+                    198, 199, 200, 201, 202, 203, 204, 205, 206, 207]
+    sw = shortestpath.ShortestPath(
+        "data/gangnam_Network.txt", origins, destinations)
 else:
-    origins = [252, 273, 298, 302, 372, 443, 441, 409, 430, 392, 321, 245 ]
-    destinations = [ 253,  276, 301, 299, 376, 447, 442, 400, 420, 393, 322, 246]
-    sw = shortestpath.ShortestPath("data/Network.txt",origins, destinations)
+    origins = [252, 273, 298, 302, 372, 443, 441, 409, 430, 392, 321, 245]
+    destinations = [253,  276, 301, 299, 376,
+                    447, 442, 400, 420, 393, 322, 246]
+    sw = shortestpath.ShortestPath("data/Network.txt", origins, destinations)
 
 
 N_STATES = sw.n_states
@@ -82,19 +87,20 @@ feat_map = np.eye(N_STATES)
 dirName = "Result"
 if not os.path.exists(dirName):
     os.mkdir(dirName)
-    print("Directory " + dirName +  " Created ")
-else:    
-    print("Directory " + dirName +  " already exists")
+    print("Directory " + dirName + " Created ")
+else:
+    print("Directory " + dirName + " already exists")
 
-if not os.path.exists(os.path.join(dirName,dataname)):
-    os.mkdir(os.path.join(dirName,dataname))
-    print("Directory " + os.path.join(dirName,dataname) +  " Created ")
-else:    
-    print("Directory " + os.path.join(dirName,dataname) +  " already exists")      
+if not os.path.exists(os.path.join(dirName, dataname)):
+    os.mkdir(os.path.join(dirName, dataname))
+    print("Directory " + os.path.join(dirName, dataname) + " Created ")
+else:
+    print("Directory " + os.path.join(dirName, dataname) + " already exists")
 
 
 # BC_MMC = model_summary_writer("test_BC_MMC_{}_{}".format(demand_type, dataname),sw)
-BC_MMC = model_summary_writer("{}/{}/test_BC_MMC_{}_{}".format(dataname, demand_type,dataname, demand_type),sw)
+BC_MMC = model_summary_writer(
+    "{}/{}/test_BC_MMC_{}_{}".format(dataname, demand_type, dataname, demand_type), sw)
 
 num_train = int(0.7 * len(trajs))
 num_test = int(0.3 * len(trajs))
@@ -106,60 +112,73 @@ test_idxs = data_idxs[num_train:(num_train + num_test)]
 train_trajs = [trajs[i] for i in train_idxs]
 test_trajs = [trajs[i] for i in test_idxs]
 
-max_length = max(list(map(len , trajs)))
+max_length = max(list(map(len, trajs)))
 MMCMODEL = MMC_predictor(sw, max_length)
 transition = MMCMODEL.train(train_trajs)
 
 learner_trajs = MMCMODEL.unroll_trajectories(transition, 20000, 20)
 
-find_state = lambda x: sw.states[x] if x != MMCMODEL.pad_idx else -1
+
+def find_state(x): return sw.states[x] if x != MMCMODEL.pad_idx else -1
+
+
 np_find_state = np.vectorize(find_state)
 
 learner_observations = np_find_state(learner_trajs.numpy())
 
-print("Saving Transition matrix to :: {}/{}/transition_{}_{}.npy".format(dirName,dataname,dataname, demand_type.split('.')[0]))
-np.save("{}/{}/transition_{}_{}.npy".format(dirName,dataname,dataname, demand_type.split('.')[0]) , transition)
+print("Saving Transition matrix to :: {}/{}/transition_{}_{}.npy".format(dirName,
+                                                                         dataname, dataname, demand_type.split('.')[0]))
+np.save("{}/{}/transition_{}_{}.npy".format(dirName, dataname,
+                                            dataname, demand_type.split('.')[0]), transition)
 
 
-avg_entropy = np.nanmean(torch.distributions.Categorical(transition).entropy().numpy())
-print(avg_entropy)
+# avg_entropy = np.nanmean(torch.distributions.Categorical(transition).entropy().numpy())
+# print(avg_entropy)
 
 acc_list = []
 acc2_list = []
 for episode in test_trajs:
     for step in episode:
-        prob = transition[MMCMODEL.find_idx(step.cur_state),:]
+        prob = transition[MMCMODEL.find_idx(step.cur_state), :]
 
-        acc  = torch.argmax(prob) == MMCMODEL.find_idx(step.next_state)
+        acc = torch.argmax(prob) == MMCMODEL.find_idx(step.next_state)
         acc2 = prob[MMCMODEL.find_idx(step.next_state)]
 
-        acc_list.append( acc.float().item() )
-        acc2_list.append( acc2.float().item() )
+        acc_list.append(acc.float().item())
+        acc2_list.append(acc2.float().item())
 
-plot_summary(BC_MMC, test_trajs, learner_observations, keep_unknown = False)
-BC_MMC.summary.add_scalar("result/acc",np.mean(acc_list) , BC_MMC.summary_cnt)
-BC_MMC.summary.add_scalar("result/acc2",np.mean(acc2_list) , BC_MMC.summary_cnt)
+plot_summary(BC_MMC, test_trajs, learner_observations, keep_unknown=False)
+BC_MMC.summary.add_scalar("result/acc", np.mean(acc_list), BC_MMC.summary_cnt)
+BC_MMC.summary.add_scalar(
+    "result/acc2", np.mean(acc2_list), BC_MMC.summary_cnt)
 
 BC_MMC.summary_cnt = N_ITERS
-BC_MMC.summary.add_scalar("result/acc",np.mean(acc_list) , BC_MMC.summary_cnt)
-BC_MMC.summary.add_scalar("result/acc2",np.mean(acc2_list) , BC_MMC.summary_cnt)
-plot_summary(BC_MMC, test_trajs, learner_observations, keep_unknown = False)
+BC_MMC.summary.add_scalar("result/acc", np.mean(acc_list), BC_MMC.summary_cnt)
+BC_MMC.summary.add_scalar(
+    "result/acc2", np.mean(acc2_list), BC_MMC.summary_cnt)
+plot_summary(BC_MMC, test_trajs, learner_observations, keep_unknown=False)
 
-from matplotlib import pyplot
 pyplot.cla()
-expert_lengths = list(map(lambda x : len(x) , trajs))
-learner_lengths = np.apply_along_axis(lambda x:np.count_nonzero(x+1) , 1, learner_observations)
+expert_lengths = list(map(lambda x: len(x), trajs))
+learner_lengths = np.apply_along_axis(
+    lambda x: np.count_nonzero(x+1), 1, learner_observations)
 
-maxlen  = max(max(expert_lengths),max(learner_lengths))
-minlen  = min(min(expert_lengths),min(learner_lengths))
+maxlen = max(max(expert_lengths), max(learner_lengths))
+minlen = min(min(expert_lengths), min(learner_lengths))
 
 
-pyplot.hist(expert_lengths,range(minlen,maxlen+1), alpha=0.5, label='expert',density=True)
-pyplot.hist(learner_lengths-1, range(minlen,maxlen+1), alpha=0.5, label='learner',density=True)
+pyplot.hist(expert_lengths, range(minlen, maxlen+1),
+            alpha=0.5, label='expert', density=True)
+pyplot.hist(learner_lengths-1, range(minlen, maxlen+1),
+            alpha=0.5, label='learner', density=True)
 pyplot.yscale('log')
 pyplot.xlabel("Length")
 pyplot.ylabel("Frequency")
 pyplot.legend(loc='upper right')
-pyplot.xticks(range(minlen,maxlen+1))
-pyplot.savefig("{}/plot/{}_{}_MMC.png".format(dirName,dataname,demand_type.split('.')[0]))
+pyplot.xticks(range(minlen, maxlen+1))
+
+Path(f"{dirName}/plot").mkdir(parents=True, exist_ok=True)
+
+pyplot.savefig("{}/plot/{}_{}_MMC.png".format(dirName,
+                                              dataname, demand_type.split('.')[0]))
 pyplot.close()

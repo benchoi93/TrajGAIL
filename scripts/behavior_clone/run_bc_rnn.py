@@ -5,6 +5,7 @@ import sys
 # sys.argv=['']
 
 sys.path.append(os.getcwd())
+from pathlib import Path
 
 import numpy as np
 import argparse
@@ -233,5 +234,6 @@ pyplot.xlabel("Length")
 pyplot.ylabel("Frequency")
 pyplot.legend(loc='upper right')
 pyplot.xticks(range(minlen,maxlen+1))
+Path(f"{dirName}/plot").mkdir(parents=True, exist_ok=True)
 pyplot.savefig("{}/plot/{}_{}_RNN.png".format(dirName,dataname,demand_type.split('.')[0]))
 
